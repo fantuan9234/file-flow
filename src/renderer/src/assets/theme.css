@@ -1,0 +1,104 @@
+:root {
+  --ff-bg-primary: #f8f9fa;
+  --ff-bg-card: #ffffff;
+  --ff-text-primary: #1a1a2e;
+  --ff-text-secondary: #6b7280;
+  --ff-color-primary: #4f46e5;
+  --ff-color-primary-hover: #4338ca;
+  --ff-color-border: #e5e7eb;
+  --ff-color-row-alt: #f9fafb;
+  --ff-color-row-hover: #f3f4f6;
+  --ff-color-success: #10b981;
+  --ff-color-danger: #ef4444;
+  --ff-color-highlight: #eef2ff;
+  --ff-shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --ff-radius: 8px;
+  --ff-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  font-family: var(--ff-font-family);
+}
+
+body {
+  margin: 0;
+  background-color: var(--ff-bg-primary);
+  color: var(--ff-text-primary);
+}
+
+.ff-card {
+  background: var(--ff-bg-card);
+  box-shadow: var(--ff-shadow-card);
+  border-radius: var(--ff-radius);
+  border: 1px solid var(--ff-color-border);
+}
+
+.ff-card .ant-card-head {
+  border-bottom: 1px solid var(--ff-color-border);
+}
+
+.ff-card .ant-card-body {
+  padding: 16px;
+}
+
+.ant-btn {
+  border-radius: var(--ff-radius);
+}
+
+.ant-btn-primary {
+  background-color: var(--ff-color-primary);
+  border-color: var(--ff-color-primary);
+}
+
+.ant-btn-primary:hover {
+  background-color: var(--ff-color-primary-hover);
+  border-color: var(--ff-color-primary-hover);
+}
+
+.ant-input,
+.ant-input-number,
+.ant-select-selector {
+  border-radius: var(--ff-radius);
+}
+
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-number:focus,
+.ant-input-number-focused {
+  border-color: var(--ff-color-primary);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+.ant-table-row:hover > td {
+  background-color: var(--ff-color-row-hover) !important;
+}
+
+.ant-table-row:nth-child(even) > td {
+  background-color: var(--ff-color-row-alt);
+}
+
+.ant-table-row:nth-child(even):hover > td {
+  background-color: var(--ff-color-row-hover) !important;
+}
+
+.ant-table-thead > tr > th {
+  background-color: var(--ff-bg-primary);
+  border-bottom: 1px solid var(--ff-color-border);
+}
+
+.ff-workflow-step {
+  border-bottom: 1px solid var(--ff-color-border);
+}
+
+.ff-workflow-step:last-child {
+  border-bottom: none;
+}
+
+.ff-empty-state {
+  padding: 32px;
+  text-align: center;
+  color: var(--ff-text-secondary);
+  background: var(--ff-bg-primary);
+  border-radius: var(--ff-radius);
+  border: 1px dashed var(--ff-color-border);
+}
