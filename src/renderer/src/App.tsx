@@ -3,6 +3,7 @@ import { Button, Table, Input, Card, message, Space, Select, InputNumber, Tabs, 
 import { DeleteOutlined, PlusOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { generateNewNames, RenameRule, RenameRuleType } from './utils/renameEngine';
 import WorkflowPanel from './components/WorkflowPanel';
+import CustomTitleBar from './components/CustomTitleBar';
 import './assets/theme.css';
 
 interface FileInfo {
@@ -802,7 +803,8 @@ function App() {
         },
       },
     }}>
-      <div style={{ padding: 24, minHeight: '100vh', background: token.colorBgLayout }}>
+      <CustomTitleBar title="File Flow" />
+      <div style={{ padding: 24, minHeight: 'calc(100vh - 32px)', background: token.colorBgLayout }}>
         <h1 style={{ color: token.colorTextHeading }}>FileFlow - 智能文件处理中心</h1>
         
         {/* 选择文件夹按钮 */}

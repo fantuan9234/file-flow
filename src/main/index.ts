@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
 import { join } from 'path';
 import fs from 'fs';
 import path from 'path';
@@ -9,12 +9,16 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    frame: false,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
+
+  Menu.setApplicationMenu(null);
 
   mainWindow.webContents.on('will-navigate', (event) => {
     event.preventDefault();
@@ -579,4 +583,27 @@ ipcMain.handle('write-file', async (_, filePath: string, content: string) => {
     console.error('[write-file] Failed to write file:', error);
     return { success: false, error: error?.message || String(error) };
   }
+});
+
+ipcMain.handle('window-minimize', () => {
+  mainWindow?.minimize();
+  return { success: true };
+});
+
+ipcMain.handle('window-maximize', () => {
+  if (mainWindow?.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow?.maximize();
+  }
+  return { success: true };
+});
+
+ipcMain.handle('window-close', () => {
+  mainWindow?.close();
+  return { success: true };
+});
+
+ipcMain.handle('window-is-maximized', () => {
+  return mainWindow?.isMaximized() || false;
 });

@@ -20,6 +20,10 @@ declare global {
       openDialogJson: () => Promise<{ success: boolean; filePath?: string }>;
       readFile: (filePath: string) => Promise<{ success: boolean; data?: string; error?: string }>;
       writeFile: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
+      windowMinimize: () => Promise<{ success: boolean }>;
+      windowMaximize: () => Promise<{ success: boolean }>;
+      windowClose: () => Promise<{ success: boolean }>;
+      windowIsMaximized: () => Promise<boolean>;
     };
   }
 }
