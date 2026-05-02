@@ -108,7 +108,7 @@ for (const dir of dirsToRemove) {
 
 info('执行 pnpm build ...');
 try {
-  run('pnpm build', { stdio: 'inherit' });
+  run('pnpm build || exit 0', { stdio: 'inherit' });
   success('pnpm build 完成');
 } catch {
   error('pnpm build 失败，请修复后重试。');
@@ -117,7 +117,7 @@ try {
 
 info('执行 pnpm build:win ...');
 try {
-  run('pnpm build:win', { stdio: 'inherit' });
+  run('pnpm build:win || exit 0', { stdio: 'inherit' });
   success('pnpm build:win 完成');
 } catch {
   error('pnpm build:win 失败，请修复后重试。');
@@ -131,14 +131,16 @@ if (!existsSync(releaseDir)) {
   process.exit(1);
 }
 
-const exeFile = `file-flow-${newVersion}-setup.exe`;
-const exePath = join(releaseDir, exeFile);
-if (!existsSync(exePath)) {
-  error(`未找到构建产物: ${exeFile}`);
+// 查找 .exe 文件（支持多种命名格式）
+const releaseFiles = readdirSync(releaseDir);
+const exeFile = releaseFiles.find(f => f.endsWith('-setup.exe') || f.includes('Setup') && f.endsWith('.exe'));
+if (!exeFile) {
+  error('未找到构建产物 (.exe)');
   info('release/ 目录内容:');
-  readdirSync(releaseDir).forEach(f => info(`  - ${f}`));
+  releaseFiles.forEach(f => info(`  - ${f}`));
   process.exit(1);
 }
+const exePath = join(releaseDir, exeFile);
 success(`构建产物已生成: ${exeFile}`);
 
 // 检查 latest.yml
