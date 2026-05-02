@@ -192,7 +192,7 @@ success(`已创建标签: ${tagName}`);
 run('git push', { stdio: 'pipe' });
 success('已推送到远程仓库');
 
-run('git push --tags', { stdio: 'pipe' });
+run(`git push origin ${tagName}`, { stdio: 'pipe' });
 success('已推送标签到远程');
 
 // ========== Step 5: 创建 GitHub Release ==========
