@@ -39,7 +39,12 @@ function error(msg) { console.error(`${colors.red}[ERROR]${colors.reset} ${msg}`
 function step(msg) { console.log(`\n${colors.bold}${colors.cyan}>>> ${msg}${colors.reset}`); }
 
 function run(cmd, opts = {}) {
-  return execSync(cmd, { encoding: 'utf-8', cwd: rootDir, ...opts }).trim();
+  try {
+    return execSync(cmd, { encoding: 'utf-8', cwd: rootDir, ...opts }).trim();
+  } catch (err) {
+    if (opts.ignoreExitCode) return '';
+    throw err;
+  }
 }
 
 // 解析参数
@@ -108,7 +113,7 @@ for (const dir of dirsToRemove) {
 
 info('执行 pnpm build ...');
 try {
-  run('pnpm build || exit 0', { stdio: 'inherit' });
+  run('pnpm build', { stdio: 'inherit', ignoreExitCode: true });
   success('pnpm build 完成');
 } catch {
   error('pnpm build 失败，请修复后重试。');
@@ -117,7 +122,7 @@ try {
 
 info('执行 pnpm build:win ...');
 try {
-  run('pnpm build:win || exit 0', { stdio: 'inherit' });
+  run('pnpm build:win', { stdio: 'inherit', ignoreExitCode: true });
   success('pnpm build:win 完成');
 } catch {
   error('pnpm build:win 失败，请修复后重试。');
