@@ -1,13 +1,28 @@
 <!doctype html>
-<html>
+<html class="light" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <title>Electron</title>
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
     />
     <link href="./assets/base.css" type="text/css" rel="stylesheet" />
+    <script>
+      (function() {
+        var saved = localStorage.getItem('fileflow-dark-mode');
+        var isDark = saved === 'true';
+        if (isDark) {
+          document.documentElement.classList.remove('light');
+          document.documentElement.classList.add('dark');
+          document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.classList.add('light');
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
   </head>
 
   <body>

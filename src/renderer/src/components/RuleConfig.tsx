@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Card, Select, Input, Button, Space, Typography, message, Switch, InputNumber, Radio } from 'antd'
+import { Card, Select, Input, Button, Space, Typography, message, Switch, InputNumber, Radio, theme } from 'antd'
 import { PlusOutlined, DeleteOutlined, DragOutlined } from '@ant-design/icons'
 import type { RenameOperation, FileInfo } from '../electron'
 import { generateNewNames, type RenameRule } from '../utils/renameEngine'
@@ -13,6 +13,7 @@ interface RuleConfigProps {
 }
 
 export function RuleConfig({ onApplyRules, selectedFiles }: RuleConfigProps) {
+  const { token } = theme.useToken();
   const [rules, setRules] = useState<RenameRule[]>([
     {
       type: 'findReplace',
@@ -120,7 +121,7 @@ export function RuleConfig({ onApplyRules, selectedFiles }: RuleConfigProps) {
         title={
           <Space>
             <DragOutlined 
-              style={{ cursor: 'grab', color: '#999' }}
+              style={{ cursor: 'grab', color: token.colorTextTertiary }}
               onMouseDown={(e) => {
                 e.preventDefault()
                 // 可以添加拖拽功能

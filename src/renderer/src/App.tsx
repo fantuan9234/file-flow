@@ -1,9 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
-import { Button, Table, Input, Card, message, Space, Select, InputNumber, Tabs, ConfigProvider, theme } from 'antd';
-import { DeleteOutlined, PlusOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useRef } from 'react';
+import { Button, Table, Input, Card, message, Space, Select, InputNumber, ConfigProvider, theme, Modal, Switch, Radio, Slider, Collapse, Checkbox, Progress, Tag, Typography, Tooltip, Breadcrumb } from 'antd';
+import { DeleteOutlined, PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, SyncOutlined, ScanOutlined, FolderOpenOutlined, FileTextOutlined, ExportOutlined, KeyOutlined, CloudOutlined, SettingOutlined, SaveOutlined, EditOutlined, SwapOutlined, FolderOutlined, ThunderboltOutlined, CopyOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { generateNewNames, RenameRule, RenameRuleType } from './utils/renameEngine';
+import { classifyFiles, ClassifyRule, ClassifyResult } from './utils/classifyEngine';
 import WorkflowPanel from './components/WorkflowPanel';
 import CustomTitleBar from './components/CustomTitleBar';
+import Sidebar from './components/Sidebar';
+import StatusBar from './components/StatusBar';
+import SettingsDrawer from './components/SettingsDrawer';
+import LanShare from './components/LanShare';
+import './i18n';
 import './assets/theme.css';
 
 interface FileInfo {
@@ -44,7 +51,16 @@ const SOURCE_FORMATS = [
   { value: '.png', label: 'PNG (.png)' },
 ];
 
-function FormatConverter() {
+function TextThemeWrapper({ children }: { children: React.ReactNode }) {
+  const { token } = theme.useToken();
+  return (
+    <div style={{ color: token.colorText, lineHeight: 1.57 }}>
+      {children}
+    </div>
+  );
+}
+
+function FormatConverter({ t }: { t: (key: string, params?: Record<string, any>) => string }) {
   const [sourceType, setSourceType] = useState<string>('');
   const [targetType, setTargetType] = useState<string>('');
   const [converting, setConverting] = useState(false);
@@ -77,12 +93,12 @@ function FormatConverter() {
       }
 
       if (successCount > 0) {
-        message.success(`转换完成！成功 ${successCount} 个${failCount > 0 ? `，失败 ${failCount} 个` : ''}`);
+        message.success(t('convert.convertSuccess', { success: successCount, fail: failCount > 0 ? t('convert.failSuffix', { count: failCount }) : '' }));
       } else {
-        message.error('所有文件转换失败');
+        message.error(t('convert.convertFailed'));
       }
     } catch (err) {
-      message.error('转换出错：' + String(err));
+      message.error(t('convert.convertError', { error: String(err) }));
     } finally {
       setConverting(false);
       setProgress(null);
@@ -91,18 +107,18 @@ function FormatConverter() {
 
   const handleConvertSingle = async () => {
     if (!sourceType) {
-      message.warning('请选择源格式');
+      message.warning(t('convert.selectFileFirst'));
       return;
     }
     if (!targetType) {
-      message.warning('请选择目标格式');
+      message.warning(t('convert.selectTargetFirst'));
       return;
     }
 
     const extensions = CONVERSION_MATRIX[sourceType]?.[0]?.extensions || ['*'];
     const fileRes = await window.fileAPI.selectFile(extensions);
     if (!fileRes.success || !fileRes.path) {
-      message.info('未选择文件');
+      message.info(t('convert.noFileSelected'));
       return;
     }
 
@@ -111,18 +127,18 @@ function FormatConverter() {
 
   const handleConvertMultiple = async () => {
     if (!sourceType) {
-      message.warning('请选择源格式');
+      message.warning(t('convert.selectFileFirst'));
       return;
     }
     if (!targetType) {
-      message.warning('请选择目标格式');
+      message.warning(t('convert.selectTargetFirst'));
       return;
     }
 
     const extensions = CONVERSION_MATRIX[sourceType]?.[0]?.extensions || ['*'];
     const fileRes = await window.fileAPI.selectFiles(extensions);
     if (!fileRes.success || !fileRes.filePaths || fileRes.filePaths.length === 0) {
-      message.info('未选择文件');
+      message.info(t('convert.noFileSelected'));
       return;
     }
 
@@ -133,7 +149,7 @@ function FormatConverter() {
     <Space direction="vertical" style={{ width: '100%' }} size="middle">
       <Space wrap>
         <Space>
-          <span>源格式：</span>
+          <span style={{ color: token.colorText }}>{t('convert.sourceFormat')}：</span>
           <Select
             value={sourceType || undefined}
             onChange={(val) => {
@@ -142,17 +158,17 @@ function FormatConverter() {
             }}
             options={SOURCE_FORMATS}
             style={{ width: 180 }}
-            placeholder="选择源格式"
+            placeholder={t('convert.sourceFormat')}
           />
         </Space>
         <Space>
-          <span>目标格式：</span>
+          <span style={{ color: token.colorText }}>{t('convert.targetFormat')}：</span>
           <Select
             value={targetType || undefined}
             onChange={setTargetType}
             options={targetOptions.map((opt) => ({ value: opt.target, label: opt.label }))}
             style={{ width: 180 }}
-            placeholder="选择目标格式"
+            placeholder={t('convert.targetFormat')}
             disabled={!sourceType}
           />
         </Space>
@@ -163,7 +179,7 @@ function FormatConverter() {
             loading={converting}
             disabled={!sourceType || !targetType}
           >
-            {converting ? `正在转换：${progress?.current}/${progress?.total}...` : '选择单个文件'}
+            {converting ? t('convert.converting', { current: progress?.current, total: progress?.total }) : t('convert.selectSingle')}
           </Button>
           <Button
             type="primary"
@@ -171,21 +187,21 @@ function FormatConverter() {
             loading={converting}
             disabled={!sourceType || !targetType}
           >
-            {converting ? `正在转换：${progress?.current}/${progress?.total}...` : '选择多个文件'}
+            {converting ? t('convert.converting', { current: progress?.current, total: progress?.total }) : t('convert.selectMultiple')}
           </Button>
         </Space>
       </Space>
       {progress && converting && (
         <div style={{ color: token.colorTextSecondary, fontSize: '12px' }}>
-          正在处理第 {progress.current} 个，共 {progress.total} 个文件
+          {t('convert.processing', { current: progress.current, total: progress.total })}
         </div>
       )}
       <div style={{ color: token.colorTextSecondary, fontSize: '12px' }}>
         <p style={{ margin: 0 }}>
-          支持的转换：Word → Markdown | Markdown → HTML / PDF | HTML → Markdown | JPEG ↔ PNG
+          {t('convert.supportedFormats')}
         </p>
         <p style={{ margin: '4px 0 0' }}>
-          输出文件保存在源文件相同目录，文件名不变（仅扩展名改变）
+          {t('convert.outputHint')}
         </p>
       </div>
     </Space>
@@ -223,32 +239,908 @@ const createRule = (type: RenameRuleType): RenameRule => {
 };
 
 function App() {
+  const { t } = useTranslation();
   const [files, setFiles] = useState<FileInfo[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<FileInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [previewList, setPreviewList] = useState<PreviewItem[]>([]);
   
-  // 规则链状态
   const [ruleChain, setRuleChain] = useState<RenameRule[]>([]);
   
-  // 防抖相关
+  const [classifyRules, setClassifyRules] = useState<ClassifyRule[]>([]);
+  const [classifyPreview, setClassifyPreview] = useState<ClassifyResult[]>([]);
+  
+  const [skipConfirm, setSkipConfirm] = useState(() => {
+    const saved = localStorage.getItem('fileflow-skip-confirm');
+    return saved === 'true';
+  });
+
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('fileflow-dark-mode');
+    const isDark = saved === 'true';
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.body.style.backgroundColor = '#000000';
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.setAttribute('data-theme', 'light');
+      document.body.style.backgroundColor = '#f5f5f5';
+    }
+    return isDark;
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+    
+    // 使用 requestAnimationFrame 确保在下一帧应用样式
+    requestAnimationFrame(() => {
+      const bgColor = darkMode ? '#000000' : '#f5f5f5';
+      const cardBg = darkMode ? '#141414' : '#ffffff';
+      const modalBg = darkMode ? '#1f1f1f' : '#ffffff';
+      
+      // 设置根元素背景色
+      document.documentElement.style.backgroundColor = bgColor;
+      document.body.style.backgroundColor = bgColor;
+      
+      // 设置所有关键 Ant Design 元素的背景色
+      const setBg = (selector: string, bg: string) => {
+        document.querySelectorAll(selector).forEach(el => {
+          if (el instanceof HTMLElement) {
+            el.style.backgroundColor = bg;
+          }
+        });
+      };
+      
+      setBg('.ant-layout, .ant-layout-content, .ant-layout-sider', bgColor);
+      setBg('.ant-card', cardBg);
+      setBg('.ant-card-head', cardBg);
+      setBg('.ant-card-body', cardBg);
+      setBg('.ant-modal-content, .ant-modal-header, .ant-modal-body, .ant-modal-footer', modalBg);
+      setBg('.ant-dropdown-menu', modalBg);
+      setBg('.ant-tabs-nav, .ant-tabs-nav-list', bgColor);
+      setBg('.ant-tabs-content-holder', bgColor);
+      setBg('.ant-table', 'transparent');
+      setBg('.ant-table-container', 'transparent');
+      setBg('.ant-table-cell', 'transparent');
+    });
+  }, [darkMode]);
+
+  const [lang, setLang] = useState(() => {
+    const saved = localStorage.getItem('fileflow-lang') || 'zh';
+    return saved;
+  });
+  
   const previewTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const { token } = theme.useToken();
 
-  // 扫描文件夹的通用函数
+  const handleToggleSkipConfirm = (checked: boolean) => {
+    setSkipConfirm(checked);
+    localStorage.setItem('fileflow-skip-confirm', String(checked));
+  };
+
+  const handleToggleDarkMode = (checked: boolean) => {
+    setDarkMode(checked);
+    // 使用 requestAnimationFrame 确保 DOM 更新后再执行非关键任务
+    requestAnimationFrame(() => {
+      localStorage.setItem('fileflow-dark-mode', String(checked));
+      if (checked) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.body.style.backgroundColor = '#000000';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.body.style.backgroundColor = '#f5f5f5';
+      }
+    });
+  };
+
+  const handleToggleLang = (checked: boolean) => {
+    const newLang = checked ? 'en' : 'zh';
+    setLang(newLang);
+    localStorage.setItem('fileflow-lang', newLang);
+    import('./i18n').then(({ default: i18n }) => i18n.changeLanguage(newLang));
+  };
+
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+
+  const [dedupMode, setDedupMode] = useState<'exact' | 'similar'>('exact');
+  const [dedupThreshold, setDedupThreshold] = useState(90);
+  const [dedupGroups, setDedupGroups] = useState<{ hash?: string; similarity?: number; files: { path: string; name: string; size: number; mtime: string }[] }[]>([]);
+  const [dedupChecked, setDedupChecked] = useState<Map<number, Set<number>>>(new Map());
+  const [scanningDedup, setScanningDedup] = useState(false);
+
+  const [_ocrLanguage, _setOcrLanguage] = useState<'eng' | 'chi_sim' | 'chi_sim+eng'>('chi_sim+eng');
+  const [ocrSelectedFile, setOcrSelectedFile] = useState<string | null>(null);
+  const [ocrText, setOcrText] = useState('');
+  const [ocrConfidence, setOcrConfidence] = useState(0);
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [ocrStatus, setOcrStatus] = useState('');
+  const [ocrExtracting, setOcrExtracting] = useState(false);
+  const [ocrAiClassifying, setOcrAiClassifying] = useState(false);
+  const [ocrAiResult, setOcrAiResult] = useState<{ category: string; rawResponse: string } | null>(null);
+  const [paddleOCRStatus, setPaddleOCRStatus] = useState<'starting' | 'running' | 'stopped' | 'failed'>('starting');
+  const [paddleOCRErrorLogPath, setPaddleOCRErrorLogPath] = useState<string>('');
+  const [ocrFiles, setOcrFiles] = useState<{ path: string; name: string; text: string; originalText: string; confidence: number; edited: boolean }[]>([]);
+  const [ocrMultiExtracting, setOcrMultiExtracting] = useState(false);
+  const [ocrSaving, setOcrSaving] = useState(false);
+
+  const [classifyMode, setClassifyMode] = useState<'fast' | 'basic' | 'enhanced' | 'cloud' | 'hybrid'>('basic');
+
+  const [contentClassifyResults, setContentClassifyResults] = useState<{ fileName: string; category: string; confidence: number; targetFolder: string; selected: boolean }[]>([]);
+  const [contentClassifying, setContentClassifying] = useState(false);
+  const [classifyExecResults, setClassifyExecResults] = useState<{ fileName: string; oldPath: string; newPath: string; status: 'moved' | 'skipped'; reason?: string }[]>([]);
+
+  const [ollamaRunning, setOllamaRunning] = useState<boolean | null>(null);
+  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+  const [ollamaModel, setOllamaModel] = useState('qwen2.5:1.5b');
+  const [ollamaClassifying, setOllamaClassifying] = useState(false);
+  const [ollamaResult, setOllamaResult] = useState<{ category: string; confidence: number; reasoning: string } | null>(null);
+  const [showAISettings, setShowAISettings] = useState(false);
+
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeTab, setActiveTab] = useState('rename');
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  const [apiProvider, setApiProvider] = useState<'openai' | 'deepseek'>('openai');
+  const [apiKey, setApiKey] = useState('');
+  const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
+  const [apiClassifying, setApiClassifying] = useState(false);
+  const [apiResult, setApiResult] = useState<{ category: string; confidence: number; reasoning: string } | null>(null);
+  const [folderCreateModalOpen, setFolderCreateModalOpen] = useState(false);
+  const [pendingFolders, setPendingFolders] = useState<{ dir: string; count: number; checked: boolean }[]>([]);
+  const [folderCreateResolve, setFolderCreateResolve] = useState<((dirs: string[]) => void) | null>(null);
+
+  const showUpdateDialog = (version: string, currentVersion: string) => {
+    Modal.confirm({
+      title: t('update.updateAvailable', { version }),
+      content: t('update.updateDetail', { currentVersion }),
+      okText: t('update.downloadNow'),
+      cancelText: t('update.remindLater'),
+      onOk: () => {
+        window.open('https://github.com/fantuan9234/file-flow/releases/latest', '_blank');
+      },
+      onCancel: () => {
+        const today = new Date().toISOString().split('T')[0];
+        localStorage.setItem('fileflow-last-update-check', today);
+      },
+    });
+  };
+
+  const handleCheckForUpdates = async (skipTodayCheck = false) => {
+    if (!skipTodayCheck) {
+      setCheckingUpdate(true);
+    }
+    try {
+      const res = await window.fileAPI.checkForUpdates();
+      if (!res.success) {
+        if (res.error === 'Development mode' && !skipTodayCheck) {
+          message.info(t('update.devMode'));
+        }
+      } else if (res.available) {
+        showUpdateDialog(res.version!, res.currentVersion!);
+      } else if (!skipTodayCheck) {
+        message.success(t('update.noUpdateAvailable'));
+      }
+    } catch (err) {
+      if (!skipTodayCheck) {
+        message.error(t('update.updateError', { error: String(err) }));
+      }
+    } finally {
+      if (!skipTodayCheck) {
+        setCheckingUpdate(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const lastCheck = localStorage.getItem('fileflow-last-update-check');
+    if (lastCheck !== today) {
+      const timer = setTimeout(() => {
+        handleCheckForUpdates(true);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleScanDuplicates = async () => {
+    if (files.length === 0) {
+      message.warning(t('dedup.selectFolderFirst'));
+      return;
+    }
+    setScanningDedup(true);
+    try {
+      let result;
+      if (dedupMode === 'exact') {
+        result = await window.fileAPI.findExactDuplicates(files);
+      } else {
+        result = await window.fileAPI.findSimilarDuplicates(files, dedupThreshold / 100);
+      }
+      if (result.success && result.groups) {
+        setDedupGroups(result.groups);
+        const initialChecked = new Map<number, Set<number>>();
+        result.groups.forEach((group, groupIndex) => {
+          const checkedIndices = new Set<number>();
+          let oldestIndex = 0;
+          let oldestTime = new Date(group.files[0].mtime).getTime();
+          group.files.forEach((file, fileIndex) => {
+            const fileTime = new Date(file.mtime).getTime();
+            if (fileTime < oldestTime) {
+              oldestTime = fileTime;
+              oldestIndex = fileIndex;
+            }
+          });
+          checkedIndices.add(oldestIndex);
+          initialChecked.set(groupIndex, checkedIndices);
+        });
+        setDedupChecked(initialChecked);
+        if (result.groups.length === 0) {
+          message.success(t('dedup.noDuplicates'));
+        } else {
+          message.success(t('dedup.foundDuplicates', { count: result.totalDuplicates }));
+        }
+      } else {
+        message.error(t('dedup.scanFailed', { error: result.error }));
+      }
+    } catch (err) {
+      message.error(t('dedup.scanFailed', { error: String(err) }));
+    } finally {
+      setScanningDedup(false);
+    }
+  };
+
+  const handleToggleDedupCheck = (groupIndex: number, fileIndex: number) => {
+    const newChecked = new Map(dedupChecked);
+    const groupChecks = newChecked.get(groupIndex) || new Set();
+    if (groupChecks.has(fileIndex)) {
+      groupChecks.delete(fileIndex);
+    } else {
+      groupChecks.add(fileIndex);
+    }
+    newChecked.set(groupIndex, groupChecks);
+    setDedupChecked(newChecked);
+  };
+
+  const handleDeleteSelected = async (groupIndex: number) => {
+    const group = dedupGroups[groupIndex];
+    const checked = dedupChecked.get(groupIndex) || new Set();
+    const filesToDelete = group.files.filter((_, i) => checked.has(i));
+    if (filesToDelete.length === 0) {
+      message.warning(t('dedup.noFilesSelected'));
+      return;
+    }
+    Modal.confirm({
+      title: t('dedup.confirmDeleteTitle'),
+      content: t('dedup.confirmDeleteContent', { count: filesToDelete.length }),
+      okText: t('dedup.confirmOk'),
+      cancelText: t('dedup.confirmCancel'),
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          const result = await window.fileAPI.deleteFiles(filesToDelete.map(f => f.path));
+          if (result.success) {
+            message.success(t('dedup.deleteSuccess', { count: filesToDelete.length }));
+            const newGroups = [...dedupGroups];
+            newGroups.splice(groupIndex, 1);
+            setDedupGroups(newGroups);
+            const newChecked = new Map(dedupChecked);
+            newChecked.delete(groupIndex);
+            setDedupChecked(newChecked);
+          } else {
+            message.error(t('dedup.deleteFailed', { error: result.error }));
+          }
+        } catch (err) {
+          message.error(t('dedup.deleteFailed', { error: String(err) }));
+        }
+      },
+    });
+  };
+
+  const handleMoveSelected = async (groupIndex: number) => {
+    const group = dedupGroups[groupIndex];
+    const checked = dedupChecked.get(groupIndex) || new Set();
+    const filesToMove = group.files.filter((_, i) => checked.has(i));
+    if (filesToMove.length === 0) {
+      message.warning(t('dedup.noFilesSelected'));
+      return;
+    }
+    Modal.confirm({
+      title: t('dedup.confirmMoveTitle'),
+      content: t('dedup.confirmMoveContent', { count: filesToMove.length }),
+      okText: t('dedup.confirmOk'),
+      cancelText: t('dedup.confirmCancel'),
+      onOk: async () => {
+        try {
+          const folderRes = await window.fileAPI.selectFolder();
+          if (!folderRes.success) {
+            return;
+          }
+          const result = await window.fileAPI.moveFiles(filesToMove.map(f => f.path), folderRes.path!);
+          if (result.success) {
+            message.success(t('dedup.moveSuccess', { count: filesToMove.length }));
+            const newGroups = [...dedupGroups];
+            newGroups.splice(groupIndex, 1);
+            setDedupGroups(newGroups);
+            const newChecked = new Map(dedupChecked);
+            newChecked.delete(groupIndex);
+            setDedupChecked(newChecked);
+          } else {
+            message.error(t('dedup.moveFailed', { error: result.error }));
+          }
+        } catch (err) {
+          message.error(t('dedup.moveFailed', { error: String(err) }));
+        }
+      },
+    });
+  };
+
+  const handleSkipGroup = (groupIndex: number) => {
+    const newGroups = [...dedupGroups];
+    newGroups.splice(groupIndex, 1);
+    setDedupGroups(newGroups);
+    const newChecked = new Map(dedupChecked);
+    newChecked.delete(groupIndex);
+    setDedupChecked(newChecked);
+    message.info(t('dedup.skipped'));
+  };
+
+  const handleSelectOCRFile = async () => {
+    const result = await window.fileAPI.selectFile(['png', 'jpg', 'jpeg', 'bmp', 'tiff', 'webp']);
+    if (result.success && result.path) {
+      setOcrSelectedFile(result.path);
+      setOcrText('');
+      setOcrConfidence(0);
+      setOcrProgress(0);
+    }
+  };
+
+  const handleExtractText = async () => {
+    if (!ocrSelectedFile) {
+      message.warning(t('ocr.selectFileFirst'));
+      return;
+    }
+    if (paddleOCRStatus !== 'running') {
+      message.warning(t('ocr.serviceUnavailableHint'));
+      return;
+    }
+    setOcrExtracting(true);
+    setOcrProgress(0);
+    setOcrText('');
+    setOcrStatus('');
+    try {
+      console.log('[PaddleOCR] Starting extraction for:', ocrSelectedFile);
+
+      const result = await window.fileAPI.paddleExtractText(ocrSelectedFile);
+
+      if (!result.success) {
+        throw new Error(result.error || 'OCR failed');
+      }
+
+      if (!result.text) {
+        message.warning(t('ocr.noTextDetected'));
+        setOcrText('');
+        setOcrConfidence(0);
+      } else {
+        setOcrText(result.text);
+        setOcrConfidence(result.confidence || 0);
+        message.success(t('ocr.extractSuccess'));
+        console.log('[PaddleOCR] Extracted', result.text.length, 'characters with', (result.confidence || 0).toFixed(1), '% confidence');
+      }
+    } catch (err) {
+      const errorMsg = String(err);
+      console.error('[PaddleOCR] Extraction failed:', errorMsg);
+      message.error(t('ocr.extractFailed', { error: errorMsg }));
+    } finally {
+      setOcrExtracting(false);
+      setOcrProgress(100);
+      setOcrStatus('');
+    }
+  };
+
+  const handleExportMarkdown = async () => {
+    if (!ocrText) {
+      message.warning(t('ocr.noTextToExport'));
+      return;
+    }
+    const paragraphs = ocrText.split(/\n\s*\n/).filter(p => p.trim());
+    let md = `# ${t('ocr.extractedText')}\n\n`;
+    md += `> ${t('ocr.extractedAt')}: ${new Date().toLocaleString()}\n\n`;
+    md += `---\n\n`;
+    for (const paragraph of paragraphs) {
+      md += `${paragraph.trim()}\n\n`;
+    }
+    const saveResult = await window.fileAPI.saveDialog('extracted-text.md');
+    if (saveResult.success && saveResult.filePath) {
+      const writeResult = await window.fileAPI.writeFile(saveResult.filePath, md);
+      if (writeResult.success) {
+        message.success(t('ocr.exportSuccess'));
+      } else {
+        message.error(t('ocr.exportFailed', { error: writeResult.error }));
+      }
+    }
+  };
+
+  const handleOcrAiClassify = async () => {
+    if (!ocrText) {
+      message.warning(t('ocr.noTextToClassify'));
+      return;
+    }
+    setOcrAiClassifying(true);
+    setOcrAiResult(null);
+    try {
+      const result = await window.fileAPI.aiClassify(ocrText);
+      if (result.success) {
+        setOcrAiResult({ category: result.category || 'other', rawResponse: result.rawResponse || '' });
+        message.success(t('ocr.aiClassifySuccess'));
+      } else {
+        message.error(t('ocr.aiClassifyFailed', { error: result.error || '' }));
+      }
+    } catch (err) {
+      message.error(t('ocr.aiClassifyFailed', { error: String(err) }));
+    } finally {
+      setOcrAiClassifying(false);
+    }
+  };
+
+  const handleSelectMultipleOCRFiles = async () => {
+    const result = await window.fileAPI.selectFiles(['png', 'jpg', 'jpeg', 'bmp', 'tiff', 'webp']);
+    if (result.success && result.filePaths && result.filePaths.length > 0) {
+      const newFiles = result.filePaths.map(fp => ({
+        path: fp,
+        name: fp.split(/[\\/]/).pop() || fp,
+        text: '',
+        originalText: '',
+        confidence: 0,
+        edited: false,
+      }));
+      setOcrFiles(newFiles);
+      setOcrText('');
+      setOcrSelectedFile(null);
+    }
+  };
+
+  const handleExtractMultipleFiles = async () => {
+    if (ocrFiles.length === 0) {
+      message.warning(t('ocr.selectFilesFirst'));
+      return;
+    }
+    if (paddleOCRStatus !== 'running') {
+      message.warning(t('ocr.serviceUnavailableHint'));
+      return;
+    }
+    setOcrMultiExtracting(true);
+    try {
+      const updatedFiles = [...ocrFiles];
+      for (let i = 0; i < updatedFiles.length; i++) {
+        setOcrProgress(Math.round(((i) / updatedFiles.length) * 100));
+        setOcrStatus(t('ocr.extractingFile', { current: i + 1, total: updatedFiles.length }));
+        try {
+          const result = await window.fileAPI.paddleExtractText(updatedFiles[i].path);
+          if (result.success && result.text) {
+            updatedFiles[i] = {
+              ...updatedFiles[i],
+              text: result.text,
+              originalText: result.text,
+              confidence: result.confidence || 0,
+            };
+          }
+        } catch {
+          // Continue with next file
+        }
+      }
+      setOcrFiles(updatedFiles);
+      setOcrProgress(100);
+      setOcrStatus('');
+      message.success(t('ocr.multiExtractSuccess', { count: updatedFiles.filter(f => f.text).length }));
+    } catch (err) {
+      message.error(t('ocr.multiExtractFailed', { error: String(err) }));
+    } finally {
+      setOcrMultiExtracting(false);
+      setOcrStatus('');
+    }
+  };
+
+  const handleOcrTextChange = (index: number, newText: string) => {
+    setOcrFiles(prev => prev.map((f, i) =>
+      i === index ? { ...f, text: newText, edited: newText !== f.originalText } : f
+    ));
+  };
+
+  const handleSaveSingleFile = async (index: number) => {
+    const file = ocrFiles[index];
+    if (!file) return;
+    setOcrSaving(true);
+    try {
+      const savePath = file.path.replace(/\.[^.]+$/, '_ocr.txt');
+      const result = await window.fileAPI.writeFile(savePath, file.text);
+      if (result.success) {
+        message.success(t('ocr.saveSuccess'));
+        setOcrFiles(prev => prev.map((f, i) =>
+          i === index ? { ...f, originalText: f.text, edited: false } : f
+        ));
+      } else {
+        message.error(t('ocr.saveFailed', { error: result.error || '' }));
+      }
+    } catch (err) {
+      message.error(t('ocr.saveFailed', { error: String(err) }));
+    } finally {
+      setOcrSaving(false);
+    }
+  };
+
+  const handleRestoreSingleFile = (index: number) => {
+    setOcrFiles(prev => prev.map((f, i) =>
+      i === index ? { ...f, text: f.originalText, edited: false } : f
+    ));
+    message.info(t('ocr.restored'));
+  };
+
+  const handleSaveAllFiles = async () => {
+    const editedFiles = ocrFiles.filter(f => f.edited);
+    if (editedFiles.length === 0) {
+      message.info(t('ocr.noChangesToSave'));
+      return;
+    }
+    setOcrSaving(true);
+    let successCount = 0;
+    let failCount = 0;
+    try {
+      for (const file of editedFiles) {
+        const savePath = file.path.replace(/\.[^.]+$/, '_ocr.txt');
+        const result = await window.fileAPI.writeFile(savePath, file.text);
+        if (result.success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+      setOcrFiles(prev => prev.map(f => f.edited ? { ...f, originalText: f.text, edited: false } : f));
+      if (failCount === 0) {
+        message.success(t('ocr.saveAllSuccess', { count: successCount }));
+      } else {
+        message.warning(t('ocr.saveAllPartial', { success: successCount, fail: failCount }));
+      }
+    } catch (err) {
+      message.error(t('ocr.saveFailed', { error: String(err) }));
+    } finally {
+      setOcrSaving(false);
+    }
+  };
+
+  const hasUnsavedChanges = ocrFiles.some(f => f.edited);
+
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    if (key !== 'ocr' && hasUnsavedChanges) {
+      Modal.confirm({
+        title: t('ocr.unsavedChangesTitle'),
+        content: t('ocr.unsavedChangesContent'),
+        okText: t('ocr.saveBeforeClose'),
+        cancelText: t('ocr.cancelClose'),
+        onOk: async () => {
+          await handleSaveAllFiles();
+        },
+        onCancel: () => {
+          setOcrFiles(prev => prev.map(f => f.edited ? { ...f, originalText: f.text, edited: false } : f));
+        },
+      });
+    }
+  };
+
+  const handleClassifyContent = async () => {
+    if (!ocrText) {
+      message.warning(t('classify.noContentToClassify'));
+      return;
+    }
+    if (classifyMode === 'basic' || classifyMode === 'hybrid') {
+      try {
+        const result = await window.fileAPI.classifyContent(ocrText);
+        if (result.success) {
+          message.success(t('classify.classifySuccess', { category: result.category }));
+        }
+      } catch (err) {
+        message.error(t('classify.classifyFailed', { error: String(err) }));
+      }
+    } else if (classifyMode === 'enhanced') {
+      if (ollamaRunning === false) {
+        message.error(t('ai.ollamaNotRunning'));
+        return;
+      }
+      setOllamaClassifying(true);
+      try {
+        const result = await window.fileAPI.ollamaClassify(ocrText, ollamaModel);
+        if (result.success) {
+          setOllamaResult({ category: result.category || 'other', confidence: result.confidence || 0, reasoning: result.reasoning || '' });
+          message.success(t('classify.classifySuccess', { category: result.category }));
+        } else {
+          message.error(t('classify.classifyFailed', { error: result.error }));
+        }
+      } catch (err) {
+        message.error(t('classify.classifyFailed', { error: String(err) }));
+      } finally {
+        setOllamaClassifying(false);
+      }
+    } else if (classifyMode === 'cloud') {
+      await handleAPIClassify();
+    } else {
+      message.info(t('classify.modeNotImplemented'));
+    }
+  };
+
+  const checkOllamaStatus = async () => {
+    try {
+      const status = await window.fileAPI.ollamaCheckStatus();
+      setOllamaRunning(status.running);
+      if (status.running && status.models) {
+        setOllamaModels(status.models);
+        if (status.models.length > 0 && !status.models.includes(ollamaModel)) {
+          setOllamaModel(status.models[0]);
+        }
+      }
+    } catch {
+      setOllamaRunning(false);
+    }
+  };
+
+  const handleSaveAIModel = () => {
+    try {
+      localStorage.setItem('ollama-config', JSON.stringify({ model: ollamaModel, baseUrl: 'http://localhost:11434' }));
+      message.success(t('ai.modelSaved'));
+    } catch {
+      message.error(t('ai.modelSaveFailed'));
+    }
+  };
+
+  const loadAPIKey = async () => {
+    try {
+      const result = await window.fileAPI.apiKeyGet();
+      if (result.success && result.key) {
+        setApiKey(result.key);
+        setApiKeyConfigured(true);
+      }
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleSaveAPIKey = async () => {
+    try {
+      const result = await window.fileAPI.apiKeySave(apiKey);
+      if (result.success) {
+        setApiKeyConfigured(!!apiKey);
+        message.success(t('ai.apiKeySaved'));
+      } else {
+        message.error(t('ai.apiKeySaveFailed', { error: result.error }));
+      }
+    } catch (err) {
+      message.error(t('ai.apiKeySaveFailed', { error: String(err) }));
+    }
+  };
+
+  const handleAPIClassify = async () => {
+    if (!ocrText) {
+      message.warning(t('classify.noContentToClassify'));
+      return;
+    }
+    if (!apiKeyConfigured) {
+      message.error(t('ai.apiKeyNotSet'));
+      return;
+    }
+    setApiClassifying(true);
+    try {
+      const { classifyWithAPI } = await import('./utils/apiClassifier');
+      const result = await classifyWithAPI(ocrText, { provider: apiProvider, apiKey, model: '' });
+      if (result.success) {
+        setApiResult({ category: result.category, confidence: result.confidence, reasoning: result.reasoning || '' });
+        message.success(t('classify.classifySuccess', { category: result.category }));
+      } else {
+        message.error(t('classify.classifyFailed', { error: result.error }));
+      }
+    } catch (err) {
+      message.error(t('classify.classifyFailed', { error: String(err) }));
+    } finally {
+      setApiClassifying(false);
+    }
+  };
+
+  const handleContentClassify = async () => {
+    const filesToClassify = selectedFiles.length > 0 ? selectedFiles : files;
+    if (filesToClassify.length === 0) {
+      message.warning(t('app.selectFilesFirst'));
+      return;
+    }
+
+    setContentClassifying(true);
+    setContentClassifyResults([]);
+    const results: { fileName: string; category: string; confidence: number; targetFolder: string; selected: boolean }[] = [];
+
+    try {
+      for (const file of filesToClassify) {
+        let category = 'other';
+        let confidence = 0;
+
+        if (classifyMode === 'fast') {
+          const ext = file.name.split('.').pop()?.toLowerCase() || '';
+          const extMap: Record<string, string> = {
+            pdf: 'documents', doc: 'documents', docx: 'documents',
+            jpg: 'images', jpeg: 'images', png: 'images', gif: 'images', webp: 'images',
+            mp3: 'audio', wav: 'audio', flac: 'audio',
+            mp4: 'videos', avi: 'videos', mkv: 'videos',
+            zip: 'archives', rar: 'archives', '7z': 'archives',
+          };
+          category = extMap[ext] || 'other';
+          confidence = 0.8;
+        } else if (classifyMode === 'basic' || classifyMode === 'hybrid') {
+          const readResult = await window.fileAPI.readFile(file.path);
+          if (readResult.success && readResult.data) {
+            const classifyResult = await window.fileAPI.classifyContent(readResult.data);
+            if (classifyResult.success) {
+              category = classifyResult.category || 'other';
+              confidence = classifyResult.confidence || 0;
+            }
+          }
+
+          if (classifyMode === 'hybrid' && confidence < 0.5) {
+            const imgResult = await window.fileAPI.extractText(file.path, 'chi_sim+eng');
+            if (imgResult.success && imgResult.text) {
+              const imgClassify = await window.fileAPI.classifyContent(imgResult.text);
+              if (imgClassify.success && (imgClassify.confidence || 0) > confidence) {
+                category = imgClassify.category || category;
+                confidence = imgClassify.confidence || confidence;
+              }
+            }
+          }
+        } else if (classifyMode === 'enhanced') {
+          const readResult = await window.fileAPI.readFile(file.path);
+          if (readResult.success && readResult.data) {
+            const aiResult = await window.fileAPI.aiClassify(readResult.data);
+            if (aiResult.success) {
+              category = aiResult.category || 'other';
+              confidence = 0.85;
+            } else {
+              message.error(t('ai.classifyFailed', { error: aiResult.error || '' }));
+              setContentClassifying(false);
+              return;
+            }
+          }
+        } else if (classifyMode === 'cloud') {
+          if (!apiKeyConfigured) {
+            message.error(t('ai.apiKeyNotSet'));
+            setContentClassifying(false);
+            return;
+          }
+          const readResult = await window.fileAPI.readFile(file.path);
+          if (readResult.success && readResult.data) {
+            const { classifyWithAPI } = await import('./utils/apiClassifier');
+            const apiResult = await classifyWithAPI(readResult.data, { provider: apiProvider, apiKey, model: '' });
+            if (apiResult.success) {
+              category = apiResult.category || 'other';
+              confidence = apiResult.confidence || 0;
+            }
+          }
+        }
+
+        const targetFolder = category === 'other' ? 'other' : category;
+        results.push({
+          fileName: file.name,
+          category,
+          confidence,
+          targetFolder,
+          selected: true,
+        });
+      }
+
+      setContentClassifyResults(results);
+      message.success(t('classify.contentClassifySuccess', { count: results.length }));
+    } catch (err) {
+      message.error(t('classify.classifyFailed', { error: String(err) }));
+    } finally {
+      setContentClassifying(false);
+    }
+  };
+
+  const handleExecuteContentClassify = async () => {
+    const selected = contentClassifyResults.filter(r => r.selected);
+    if (selected.length === 0) {
+      message.warning(t('classify.noFilesSelected'));
+      return;
+    }
+
+    const doClassify = async () => {
+      setLoading(true);
+      try {
+        const folderPath = files.length > 0 ? window.fileAPI.path.dirname(files[0].path) : '';
+        const ops = selected.map(r => ({
+          oldPath: window.fileAPI.path.join(folderPath, r.fileName),
+          newPath: window.fileAPI.path.join(folderPath, r.targetFolder, r.fileName),
+        }));
+        const res = await window.fileAPI.classifyFiles(ops);
+        if (res.success) {
+          const execResults = (res as any).results || [];
+          const movedCount = execResults.filter((r: any) => r.status === 'moved').length;
+          const skippedCount = execResults.filter((r: any) => r.status === 'skipped').length;
+          const targetFolders = [...new Set(selected.map(r => r.targetFolder))];
+          const targetPaths = targetFolders.map(tf => window.fileAPI.path.join(folderPath, tf));
+          if (skippedCount > 0) {
+            message.warning(t('classify.classifyPartialSuccess', { moved: movedCount, skipped: skippedCount, paths: targetPaths.join(', ') }));
+          } else {
+            message.success(t('classify.executeContentClassifySuccess', { count: movedCount, paths: targetPaths.join(', ') }));
+          }
+          const resultsWithNames = execResults.map((r: any) => ({
+            fileName: window.fileAPI.path.basename(r.oldPath),
+            oldPath: r.oldPath,
+            newPath: r.newPath,
+            status: r.status as 'moved' | 'skipped',
+            reason: r.reason,
+          }));
+          setClassifyExecResults(resultsWithNames);
+          setContentClassifyResults([]);
+          if (files.length > 0) {
+            const scanRes = await window.fileAPI.scanFiles(folderPath);
+            if (scanRes.success && scanRes.data) {
+              setFiles(scanRes.data);
+              setSelectedFiles(scanRes.data);
+            }
+          }
+        } else {
+          message.error(t('classify.classifyFailed', { error: res.error }));
+        }
+      } catch (err) {
+        message.error(t('classify.classifyFailed', { error: String(err) }));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (skipConfirm) {
+      doClassify();
+    } else {
+      Modal.confirm({
+        title: t('classify.executeContentClassifyTitle'),
+        content: t('classify.executeContentClassifyContent', { count: selected.length }),
+        okText: t('classify.confirmOk'),
+        cancelText: t('classify.confirmCancel'),
+        okButtonProps: { type: 'primary' },
+        onOk: doClassify,
+      });
+    }
+  };
+
+  const toggleContentClassifyResult = (index: number) => {
+    const newResults = [...contentClassifyResults];
+    newResults[index].selected = !newResults[index].selected;
+    setContentClassifyResults(newResults);
+  };
+
+  useEffect(() => {
+    checkOllamaStatus();
+    loadAPIKey();
+  }, []);
+
   const scanFolder = async (folderPath: string) => {
     setLoading(true);
     try {
       const scanRes = await window.fileAPI.scanFiles(folderPath);
       if (scanRes.success && scanRes.data) {
         setFiles(scanRes.data);
+        setSelectedFiles(scanRes.data); // 默认全选
         setPreviewList([]);
-        message.success(`扫描完成，共 ${scanRes.data.length} 个文件`);
+        message.success(t('app.scanSuccess', { count: scanRes.data.length }));
       } else {
-        message.error('扫描失败：' + scanRes.error);
+        message.error(t('app.scanFailed', { error: scanRes.error }));
       }
     } catch (err) {
-      message.error('出错：' + String(err));
+      message.error(t('app.errorPrefix', { error: String(err) }));
     } finally {
       setLoading(false);
     }
@@ -259,12 +1151,13 @@ function App() {
     try {
       const folderRes = await window.fileAPI.selectFolder();
       if (!folderRes.success || !folderRes.path) {
-        message.info('未选择文件夹');
+        message.info(t('app.noFolderSelected'));
         return;
       }
+      setSelectedFolder(folderRes.path);
       await scanFolder(folderRes.path);
     } catch (err) {
-      message.error('出错：' + String(err));
+      message.error(t('app.errorPrefix', { error: String(err) }));
     }
   };
 
@@ -275,7 +1168,7 @@ function App() {
     }
     
     previewTimerRef.current = setTimeout(() => {
-      if (files.length === 0 || ruleChain.length === 0) {
+      if (selectedFiles.length === 0 || ruleChain.length === 0) {
         setPreviewList([]);
         return;
       }
@@ -292,7 +1185,7 @@ function App() {
         }
       }
       
-      const preview = generateNewNames(files, ruleChain);
+      const preview = generateNewNames(selectedFiles, ruleChain);
       setPreviewList(preview);
     }, 300);
   };
@@ -305,7 +1198,76 @@ function App() {
         clearTimeout(previewTimerRef.current);
       }
     };
-  }, [ruleChain, files]);
+  }, [ruleChain, files, selectedFiles]);
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const result = await window.fileAPI.getPaddleOCRStatus();
+        setPaddleOCRStatus(result.status);
+        if (result.errorLogPath) {
+          setPaddleOCRErrorLogPath(result.errorLogPath);
+        }
+      } catch {
+        setPaddleOCRStatus('failed');
+      }
+    };
+    checkStatus();
+
+    const interval = setInterval(checkStatus, 10000);
+
+    const removeStatusListener = window.fileAPI.onPaddleOCRStatusChange((data) => {
+      setPaddleOCRStatus(data.status as 'starting' | 'running' | 'stopped' | 'failed');
+      if (data.errorLogPath) {
+        setPaddleOCRErrorLogPath(data.errorLogPath);
+      }
+    });
+
+    const removeFolderListener = window.fileAPI.onAskCreateFolder((folders) => {
+      setPendingFolders(folders.map(f => ({ ...f, checked: true })));
+      setFolderCreateModalOpen(true);
+    });
+
+    return () => {
+      clearInterval(interval);
+      removeStatusListener();
+      removeFolderListener();
+    };
+  }, []);
+
+  const handleFolderCreateConfirm = () => {
+    const selectedDirs = pendingFolders.filter(f => f.checked).map(f => f.dir);
+    window.fileAPI.sendCreateFolderResponse(selectedDirs);
+    setFolderCreateModalOpen(false);
+    setPendingFolders([]);
+    if (folderCreateResolve) {
+      folderCreateResolve(selectedDirs);
+      setFolderCreateResolve(null);
+    }
+  };
+
+  const handleFolderCreateCancel = () => {
+    window.fileAPI.sendCreateFolderResponse([]);
+    setFolderCreateModalOpen(false);
+    setPendingFolders([]);
+    if (folderCreateResolve) {
+      folderCreateResolve([]);
+      setFolderCreateResolve(null);
+    }
+  };
+
+  const handleToggleAllFolders = () => {
+    const allChecked = pendingFolders.every(f => f.checked);
+    setPendingFolders(prev => prev.map(f => ({ ...f, checked: !allChecked })));
+  };
+
+  const handleOpenPaddleOCRLog = async () => {
+    try {
+      await window.fileAPI.openPaddleOCRLog();
+    } catch {
+      message.error(t('ocr.logOpenFailed'));
+    }
+  };
 
   // 添加规则
   const handleAddRule = (type: RenameRuleType) => {
@@ -343,13 +1305,13 @@ function App() {
 
   // 手动预览（保留作为备用）
   const handlePreview = () => {
-    if (files.length === 0) {
-      message.warning('请先选择文件夹');
+    if (selectedFiles.length === 0) {
+      message.warning(t('app.selectFilesFirst'));
       return;
     }
 
     if (ruleChain.length === 0) {
-      message.warning('请至少添加一条规则');
+      message.warning(t('rename.addRuleFirst'));
       return;
     }
 
@@ -357,11 +1319,11 @@ function App() {
     for (let i = 0; i < ruleChain.length; i++) {
       const rule = ruleChain[i];
       if (rule.type === 'findReplace' && !rule.params.search) {
-        message.warning(`第 ${i + 1} 条规则：请输入要查找的文本`);
+        message.warning(t('rename.enterSearchText', { index: i + 1 }));
         return;
       }
       if (rule.type === 'insertDate' && !rule.params.format) {
-        message.warning(`第 ${i + 1} 条规则：请输入日期格式`);
+        message.warning(t('rename.enterDateFormat', { index: i + 1 }));
         return;
       }
     }
@@ -371,27 +1333,215 @@ function App() {
       clearTimeout(previewTimerRef.current);
     }
     
-    const preview = generateNewNames(files, ruleChain);
+    const preview = generateNewNames(selectedFiles, ruleChain);
     setPreviewList(preview);
     
     if (preview.length > 0) {
-      message.success(`生成 ${preview.length} 个重命名预览（应用 ${ruleChain.length} 条规则）`);
+      message.success(t('rename.previewGenerated', { count: preview.length, rules: ruleChain.length }));
     } else {
-      message.info('没有文件需要重命名');
+      message.info(t('rename.noFilesToRename'));
     }
   };
 
   // 清空规则链
   const handleClearChain = () => {
     setRuleChain([]);
-    // useEffect 会自动清空预览
+  };
+
+  const classifyRuleTypes: { value: ClassifyRule['type']; label: string }[] = [
+    { value: 'byExtension', label: t('classify.byExtension') },
+    { value: 'byKeyword', label: t('classify.byKeyword') },
+    { value: 'bySize', label: t('classify.bySize') },
+    { value: 'byDate', label: t('classify.byDate') },
+  ];
+
+  const createClassifyRule = (type: ClassifyRule['type'] = 'byExtension'): ClassifyRule => {
+    switch (type) {
+      case 'byExtension':
+        return { type, params: { extension: 'pdf' }, targetFolder: '' };
+      case 'byKeyword':
+        return { type, params: { keyword: '' }, targetFolder: '' };
+      case 'bySize':
+        return { type, params: { maxSize: 10485760 }, targetFolder: '' };
+      case 'byDate':
+        return { type, params: { days: 7, dateMode: 'older' }, targetFolder: '' };
+    }
+  };
+
+  const handleAddClassifyRule = (type: ClassifyRule['type']) => {
+    setClassifyRules([...classifyRules, createClassifyRule(type)]);
+  };
+
+  const handleDeleteClassifyRule = (index: number) => {
+    setClassifyRules(classifyRules.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateClassifyRule = (index: number, updated: ClassifyRule) => {
+    const newRules = [...classifyRules];
+    newRules[index] = updated;
+    setClassifyRules(newRules);
+  };
+
+  const handleClassifyPreview = () => {
+    if (selectedFiles.length === 0) {
+      message.warning(t('app.selectFilesFirst'));
+      return;
+    }
+    if (classifyRules.length === 0) {
+      message.warning(t('classify.addRuleFirst'));
+      return;
+    }
+    for (const rule of classifyRules) {
+      if (!rule.targetFolder) {
+        message.warning(t('classify.setTargetFolder'));
+        return;
+      }
+    }
+    const folderPath = selectedFiles.length > 0 ? selectedFiles[0].path.substring(0, selectedFiles[0].path.lastIndexOf(selectedFiles[0].name)) : '';
+    const result = classifyFiles(selectedFiles, classifyRules, folderPath);
+    setClassifyPreview(result);
+    if (result.length > 0) {
+      message.success(t('classify.previewSuccess', { count: result.length }));
+    } else {
+      message.info(t('classify.noMatchedFiles'));
+    }
+  };
+
+  const handleExecuteClassify = async () => {
+    if (classifyPreview.length === 0) {
+      message.warning(t('classify.executeClassify'));
+      return;
+    }
+
+    const doClassify = async () => {
+      setLoading(true);
+      const ops = classifyPreview.map(item => ({ oldPath: item.oldPath, newPath: item.newPath }));
+      const res = await window.fileAPI.classifyFiles(ops);
+      setLoading(false);
+      if (res.success) {
+        const execResults = (res as any).results || [];
+        const movedCount = execResults.filter((r: any) => r.status === 'moved').length;
+        const skippedCount = execResults.filter((r: any) => r.status === 'skipped').length;
+        const targetFolders = [...new Set(classifyPreview.map(item => window.fileAPI.path.dirname(item.newPath)))];
+        if (skippedCount > 0) {
+          message.warning(t('classify.classifyPartialSuccess', { moved: movedCount, skipped: skippedCount, paths: targetFolders.join(', ') }));
+        } else {
+          message.success(t('classify.classifySuccess', { count: movedCount, paths: targetFolders.join(', ') }));
+        }
+        const resultsWithNames = execResults.map((r: any) => ({
+          fileName: window.fileAPI.path.basename(r.oldPath),
+          oldPath: r.oldPath,
+          newPath: r.newPath,
+          status: r.status as 'moved' | 'skipped',
+          reason: r.reason,
+        }));
+        setClassifyExecResults(resultsWithNames);
+        setClassifyPreview([]);
+        if (files.length > 0) {
+          const folderPath = window.fileAPI.path.dirname(files[0].path);
+          const scanRes = await window.fileAPI.scanFiles(folderPath);
+          if (scanRes.success && scanRes.data) {
+            setFiles(scanRes.data);
+            setSelectedFiles(scanRes.data);
+          }
+        }
+      } else {
+        message.error(t('classify.classifyFailed', { error: res.error }));
+      }
+    };
+
+    if (skipConfirm) {
+      doClassify();
+    } else {
+      Modal.confirm({
+        title: t('classify.confirmTitle'),
+        content: t('classify.confirmContent', { count: classifyPreview.length }),
+        okText: t('classify.confirmOk'),
+        cancelText: t('classify.confirmCancel'),
+        okButtonProps: { type: 'primary' },
+        onOk: doClassify,
+      });
+    }
+  };
+
+  const handleUndoClassify = async () => {
+    const res = await window.fileAPI.undoClassify();
+    if (res.success) {
+      message.success(t('classify.undoSuccess'));
+      setClassifyPreview([]);
+      if (files.length > 0) {
+        const folderPath = files[0].path.substring(0, files[0].path.lastIndexOf(files[0].name));
+        const scanRes = await window.fileAPI.scanFiles(folderPath);
+        if (scanRes.success && scanRes.data) {
+          setFiles(scanRes.data);
+          setSelectedFiles(scanRes.data);
+        }
+      }
+    } else {
+      message.error(t('classify.undoFailed', { error: res.error }));
+    }
+  };
+
+  const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
+
+  const isImageFile = (fileName: string): boolean => {
+    const ext = '.' + fileName.split('.').pop()?.toLowerCase();
+    return IMAGE_EXTENSIONS.includes(ext);
+  };
+
+  const getImageSrc = (filePath: string): string => {
+    const normalizedPath = filePath.replace(/\\/g, '/');
+    return `file:///${normalizedPath}`;
+  };
+
+  const renderFileName = (name: string, record: FileInfo) => {
+    if (isImageFile(name)) {
+      return (
+        <Space size={8}>
+          <img
+            src={getImageSrc(record.path)}
+            alt={name}
+            style={{
+              width: 40,
+              height: 40,
+              objectFit: 'cover',
+              borderRadius: 4,
+              flexShrink: 0,
+            }}
+            loading="lazy"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                const icon = document.createElement('span');
+                const bgColor = darkMode ? '#262626' : '#f5f5f5';
+                const iconColor = darkMode ? 'rgba(255, 255, 255, 0.45)' : '#999';
+                icon.innerHTML = `<span style="display:inline-flex;width:40px;height:40px;align-items:center;justify-content:center;background:${bgColor};border-radius:4px;"><svg viewBox="64 64 896 896" focusable="false" data-icon="file-image" width="24" height="24" fill="${iconColor}" aria-hidden="true"><path d="M854.6 288.6L639.4 73.4c-6-6-14.1-9.4-22.6-9.4H192c-17.7 0-32 14.3-32 32v832c0 17.7 14.3 32 32 32h640c17.7 0 32-14.3 32-32V311.3c0-8.5-3.4-16.7-9.4-22.7zM790.2 326H602V137.8L800.2 336c1.3 1.3 2.1 3.1 2.4 5l-12.4-15zm-122.8 376.3c-3.5 11.2-15.5 17.4-26.7 13.9l-120.6-37.6-37.6 120.6c-3.5 11.2-15.5 17.4-26.7 13.9-4.8-1.5-8.8-4.8-11.2-9.2L300.2 516.5c-5.5-10-1.9-22.6 8.1-28.1 3.2-1.8 6.8-2.7 10.4-2.7l156.9 49 49-156.9c3.5-11.2 15.5-17.4 26.7-13.9 4.8 1.5 8.8 4.8 11.2 9.2l144.4 287.5c2.3 4.5 2.8 9.6 1.3 14.4z"></path></svg></span>`;
+                const firstChild = icon.firstChild as Node | null;
+                if (firstChild) {
+                  parent.insertBefore(firstChild, target.nextSibling);
+                }
+              }
+            }}
+          />
+          <span>{name}</span>
+        </Space>
+      );
+    }
+    return <span>{name}</span>;
   };
 
   const fileColumns = [
-    { title: '文件名', dataIndex: 'name', key: 'name' },
-    { title: '路径', dataIndex: 'path', key: 'path', ellipsis: true },
+    { 
+      title: t('app.columns.name'), 
+      dataIndex: 'name', 
+      key: 'name',
+      render: (name: string, record: FileInfo) => renderFileName(name, record),
+    },
+    { title: t('app.columns.path'), dataIndex: 'path', key: 'path', ellipsis: true },
     {
-      title: '大小',
+      title: t('app.columns.size'),
       dataIndex: 'size',
       key: 'size',
       render: (size: number) => {
@@ -403,8 +1553,8 @@ function App() {
   ];
 
   const previewColumns = [
-    { title: '原文件名', dataIndex: 'oldName', key: 'oldName' },
-    { title: '新文件名', dataIndex: 'newName', key: 'newName' },
+    { title: t('rename.columns.oldName'), dataIndex: 'oldName', key: 'oldName' },
+    { title: t('rename.columns.newName'), dataIndex: 'newName', key: 'newName' },
   ];
 
   // 渲染单条规则的参数输入区域
@@ -413,22 +1563,22 @@ function App() {
       case 'addPrefix':
         return (
           <Input
-            placeholder="输入前缀"
+            placeholder={t('rename.prefixPlaceholder')}
             value={rule.params.prefix || ''}
             onChange={(e) => handleUpdateRule(index, { type: rule.type, params: { prefix: e.target.value } })}
             style={{ width: 300 }}
-            addonBefore="前缀："
+            addonBefore={t('rename.prefix') + '：'}
           />
         );
 
       case 'addSuffix':
         return (
           <Input
-            placeholder="输入后缀"
+            placeholder={t('rename.suffixPlaceholder')}
             value={rule.params.suffix || ''}
             onChange={(e) => handleUpdateRule(index, { type: rule.type, params: { suffix: e.target.value } })}
             style={{ width: 300 }}
-            addonBefore="后缀："
+            addonBefore={t('rename.suffix') + '：'}
           />
         );
 
@@ -437,20 +1587,20 @@ function App() {
           <Space direction="vertical" style={{ width: '100%' }}>
             <Space>
               <Input
-                placeholder="查找文本"
+                placeholder={t('rename.searchPlaceholder')}
                 value={rule.params.search || ''}
                 onChange={(e) => handleUpdateRule(index, { type: rule.type, params: { search: e.target.value, replace: rule.params.replace } })}
                 style={{ width: 300 }}
-                addonBefore="查找："
+                addonBefore={t('rename.search') + '：'}
               />
             </Space>
             <Space>
               <Input
-                placeholder="替换为"
+                placeholder={t('rename.replacePlaceholder')}
                 value={rule.params.replace || ''}
                 onChange={(e) => handleUpdateRule(index, { type: rule.type, params: { search: rule.params.search, replace: e.target.value } })}
                 style={{ width: 300 }}
-                addonBefore="替换为："
+                addonBefore={t('rename.replaceWith') + '：'}
               />
             </Space>
           </Space>
@@ -460,31 +1610,29 @@ function App() {
         return (
           <Space direction="vertical" style={{ width: '100%' }}>
             <Space>
-              <span style={{ minWidth: '80px' }}>位置：</span>
+              <span style={{ minWidth: '80px' }}>{t('rename.position')}：</span>
               <Select
                 value={rule.params.position || 'prefix'}
                 onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...rule.params, position: value } })}
                 options={[
-                  { value: 'prefix', label: '前面（日期在前）' },
-                  { value: 'suffix', label: '后面（日期在后）' }
+                  { value: 'prefix', label: t('rename.datePositionPrefix') },
+                  { value: 'suffix', label: t('rename.datePositionSuffix') }
                 ]}
                 style={{ width: 200 }}
               />
             </Space>
             <Space>
-              <span style={{ minWidth: '80px' }}>格式：</span>
+              <span style={{ minWidth: '80px' }}>{t('rename.format')}：</span>
               <Input
-                placeholder="日期格式"
+                placeholder={t('rename.format')}
                 value={rule.params.format || ''}
                 onChange={(e) => handleUpdateRule(index, { type: rule.type, params: { ...rule.params, format: e.target.value } })}
                 style={{ width: 300 }}
-                addonBefore="格式："
+                addonBefore={t('rename.format') + '：'}
               />
             </Space>
             <Space style={{ fontSize: '12px', color: token.colorTextTertiary, flexWrap: 'wrap' }}>
-              <span>示例：yyyyMMdd → 20250130</span>
-              <span>yyyy-MM-dd → 2025-01-30</span>
-              <span>yyyy 年 MM 月 dd 日 → 2025 年 01 月 30 日</span>
+              <Typography.Text type="secondary">{t('rename.exampleFormats')}</Typography.Text>
             </Space>
           </Space>
         );
@@ -494,7 +1642,7 @@ function App() {
           <Space direction="vertical" style={{ width: '100%' }}>
             <Space wrap>
               <Space>
-                <span style={{ minWidth: '80px' }}>起始数字：</span>
+                <span style={{ minWidth: '80px' }}>{t('rename.startNumber')}：</span>
                 <InputNumber
                   value={rule.params.start || 1}
                   onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...rule.params, start: value || 1 } })}
@@ -503,7 +1651,7 @@ function App() {
                 />
               </Space>
               <Space>
-                <span style={{ minWidth: '50px' }}>步长：</span>
+                <span style={{ minWidth: '50px' }}>{t('rename.step')}：</span>
                 <InputNumber
                   value={rule.params.step || 1}
                   onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...rule.params, step: value || 1 } })}
@@ -512,7 +1660,7 @@ function App() {
                 />
               </Space>
               <Space>
-                <span style={{ minWidth: '50px' }}>位数：</span>
+                <span style={{ minWidth: '50px' }}>{t('rename.digits')}：</span>
                 <InputNumber
                   value={rule.params.digits || 3}
                   onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...rule.params, digits: value || 3 } })}
@@ -522,21 +1670,20 @@ function App() {
                 />
               </Space>
               <Space>
-                <span style={{ minWidth: '50px' }}>位置：</span>
+                <span style={{ minWidth: '50px' }}>{t('rename.position')}：</span>
                 <Select
                   value={rule.params.position || 'prefix'}
                   onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...rule.params, position: value } })}
                   options={[
-                    { value: 'prefix', label: '前面' },
-                    { value: 'suffix', label: '后面' }
+                    { value: 'prefix', label: t('rename.positionPrefix') },
+                    { value: 'suffix', label: t('rename.positionSuffix') }
                   ]}
                   style={{ width: 120 }}
                 />
               </Space>
             </Space>
             <Space style={{ fontSize: '12px', color: token.colorTextTertiary, flexWrap: 'wrap' }}>
-              <span>示例：起始=1, 步长=1, 位数=3 → 001, 002, 003...</span>
-              <span>起始=10, 步长=5, 位数=2 → 10, 15, 20...</span>
+              <Typography.Text type="secondary">{t('rename.exampleSequence')}</Typography.Text>
             </Space>
           </Space>
         );
@@ -546,20 +1693,90 @@ function App() {
     }
   };
 
+  const renderEmptyGuide = () => {
+    const moduleInfo = {
+      rename: {
+        icon: <EditOutlined style={{ fontSize: 48, color: token.colorPrimary }} />,
+        title: t('rename.emptyGuideTitle'),
+        description: t('rename.emptyGuideDesc'),
+      },
+      convert: {
+        icon: <SwapOutlined style={{ fontSize: 48, color: token.colorPrimary }} />,
+        title: t('convert.emptyGuideTitle'),
+        description: t('convert.emptyGuideDesc'),
+      },
+      classify: {
+        icon: <FolderOutlined style={{ fontSize: 48, color: token.colorPrimary }} />,
+        title: t('classify.emptyGuideTitle'),
+        description: t('classify.emptyGuideDesc'),
+      },
+      workflow: {
+        icon: <ThunderboltOutlined style={{ fontSize: 48, color: token.colorPrimary }} />,
+        title: t('workflow.emptyGuideTitle'),
+        description: t('workflow.emptyGuideDesc'),
+      },
+      ocr: {
+        icon: <ScanOutlined style={{ fontSize: 48, color: token.colorPrimary }} />,
+        title: t('ocr.emptyGuideTitle'),
+        description: t('ocr.emptyGuideDesc'),
+      },
+      dedup: {
+        icon: <CopyOutlined style={{ fontSize: 48, color: token.colorPrimary }} />,
+        title: t('dedup.emptyGuideTitle'),
+        description: t('dedup.emptyGuideDesc'),
+      },
+    };
+
+    const info = moduleInfo[activeTab as keyof typeof moduleInfo] || {
+      icon: <FolderOpenOutlined style={{ fontSize: 48, color: token.colorPrimary }} />,
+      title: t('app.noFolderSelected'),
+      description: t('app.selectFolderGuide'),
+    };
+
+    return (
+      <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+        <div style={{ marginBottom: 16 }}>{info.icon}</div>
+        <Typography.Title level={4} style={{ marginBottom: 8 }}>
+          {info.title}
+        </Typography.Title>
+        <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
+          {info.description}
+        </Typography.Text>
+        <Button type="primary" size="large" onClick={handleSelectAndScan}>
+          {t('app.selectFolder')}
+        </Button>
+      </div>
+    );
+  };
+
+  const renderContent = () => {
+    if (activeTab === 'lan') {
+      const tabItem = tabItems.find(item => item.key === 'lan');
+      return tabItem?.children || null;
+    }
+
+    if (files.length === 0) {
+      return renderEmptyGuide();
+    }
+
+    const tabItem = tabItems.find(item => item.key === activeTab);
+    return tabItem?.children || null;
+  };
+
   const tabItems = [
     {
       key: 'rename',
-      label: '批量重命名',
+      label: t('tabs.rename'),
       children: (
         <>
           {/* 规则链配置卡片 */}
           <Card 
-            title="重命名规则链" 
-            style={{ marginBottom: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}
+            title={t('rename.ruleChainTitle')} 
+            style={{ marginBottom: 16 }}
             extra={
               <Space>
                 <Button onClick={handleClearChain} size="small" danger disabled={ruleChain.length === 0}>
-                  清空规则链
+                  {t('rename.clearRules')}
                 </Button>
               </Space>
             }
@@ -567,21 +1784,21 @@ function App() {
             <Space direction="vertical" style={{ width: '100%' }} size="middle">
               {/* 添加规则按钮 */}
               <Space wrap>
-                <span style={{ fontWeight: 600 }}>添加规则：</span>
+                <span style={{ fontWeight: 600 }}>{t('rename.addRule')}：</span>
                 <Button icon={<PlusOutlined />} onClick={() => handleAddRule('addPrefix')} size="small">
-                  添加前缀
+                  {t('rename.addPrefix')}
                 </Button>
                 <Button icon={<PlusOutlined />} onClick={() => handleAddRule('addSuffix')} size="small">
-                  添加后缀
+                  {t('rename.addSuffix')}
                 </Button>
                 <Button icon={<PlusOutlined />} onClick={() => handleAddRule('findReplace')} size="small">
-                  查找替换
+                  {t('rename.findReplace')}
                 </Button>
                 <Button icon={<PlusOutlined />} onClick={() => handleAddRule('insertDate')} size="small">
-                  插入日期
+                  {t('rename.insertDate')}
                 </Button>
                 <Button icon={<PlusOutlined />} onClick={() => handleAddRule('sequence')} size="small">
-                  添加序号
+                  {t('rename.addSequence')}
                 </Button>
               </Space>
 
@@ -596,11 +1813,10 @@ function App() {
                         background: token.colorBgContainer,
                         border: `1px solid ${token.colorBorder}`,
                         borderLeft: `4px solid ${token.colorPrimary}`,
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)'
                       }}
                       title={
                         <Space>
-                          <span style={{ fontWeight: 600 }}>规则 {index + 1}</span>
+                          <span style={{ fontWeight: 600 }}>{t('classify.rule')} {index + 1}</span>
                           <Select
                             value={rule.type}
                             onChange={(value) => {
@@ -608,11 +1824,11 @@ function App() {
                               handleUpdateRule(index, newRule);
                             }}
                             options={[
-                              { value: 'addPrefix', label: '添加前缀' },
-                              { value: 'addSuffix', label: '添加后缀' },
-                              { value: 'findReplace', label: '查找替换' },
-                              { value: 'insertDate', label: '插入日期' },
-                              { value: 'sequence', label: '添加序号' }
+                              { value: 'addPrefix', label: t('rename.addPrefix') },
+                              { value: 'addSuffix', label: t('rename.addSuffix') },
+                              { value: 'findReplace', label: t('rename.findReplace') },
+                              { value: 'insertDate', label: t('rename.insertDate') },
+                              { value: 'sequence', label: t('rename.addSequence') }
                             ]}
                             style={{ width: 150 }}
                             size="small"
@@ -626,21 +1842,21 @@ function App() {
                             onClick={() => handleMoveRule(index, 'up')}
                             disabled={index === 0}
                             size="small"
-                            title="上移"
+                            title={t('common.moveUp')}
                           />
                           <Button
                             icon={<ArrowDownOutlined />}
                             onClick={() => handleMoveRule(index, 'down')}
                             disabled={index === ruleChain.length - 1}
                             size="small"
-                            title="下移"
+                            title={t('common.moveDown')}
                           />
                           <Button
                             icon={<DeleteOutlined />}
                             onClick={() => handleDeleteRule(index)}
                             size="small"
                             danger
-                            title="删除"
+                            title={t('common.delete')}
                           />
                         </Space>
                       }
@@ -655,9 +1871,9 @@ function App() {
 
               {ruleChain.length === 0 && (
                 <div className="ff-empty-state">
-                  <p style={{ margin: 0 }}>暂无规则，请点击上方按钮添加规则</p>
+                  <p style={{ margin: 0 }}>{t('rename.noRules')}</p>
                   <p style={{ margin: '8px 0 0', fontSize: '12px' }}>
-                    规则将按添加顺序依次执行，可以通过上下箭头调整顺序
+                    {t('rename.ruleOrderHint')}
                   </p>
                 </div>
               )}
@@ -667,13 +1883,13 @@ function App() {
                 <Space style={{ justifyContent: 'space-between' }}>
                   <div style={{ color: token.colorPrimary, fontSize: '12px' }}>
                     {ruleChain.length > 0 && files.length > 0 ? (
-                      <span>✨ 实时预览已启用 - 修改规则后自动更新</span>
+                      <Typography.Text>{t('rename.livePreview')}</Typography.Text>
                     ) : (
-                      <span style={{ color: token.colorTextTertiary }}>添加规则并选择文件夹后自动预览</span>
+                      <Typography.Text type="secondary">{t('rename.autoPreviewHint')}</Typography.Text>
                     )}
                   </div>
-                  <Button onClick={handlePreview} disabled={ruleChain.length === 0} title="立即刷新预览">
-                    刷新预览
+                  <Button onClick={handlePreview} disabled={ruleChain.length === 0} title={t('rename.refreshPreview')}>
+                    {t('rename.refreshPreview')}
                   </Button>
                 </Space>
               </Space>
@@ -691,48 +1907,72 @@ function App() {
                 style={{ marginBottom: 16 }}
               />
               <Space style={{ marginBottom: 16 }}>
-                <Button type="primary" danger onClick={async () => {
-                  if (!window.fileAPI.renameFiles) {
-                    message.error('重命名功能未加载，请重启应用');
+                <Button type="primary" danger onClick={() => {
+                  if (selectedFiles.length === 0) {
+                    message.warning(t('app.selectFilesFirst'));
                     return;
                   }
-                  setLoading(true);
-                  const ops = previewList.map(item => ({
-                    oldPath: item.oldPath,
-                    newPath: item.newPath,
-                  }));
-                  const res = await window.fileAPI.renameFiles(ops);
-                  if (res.success) {
-                    message.success('重命名成功！');
-                    setPreviewList([]);
-                    // 重新扫描文件夹刷新列表
-                    if (files.length > 0) {
-                      const folderPath = files[0].path.substring(0, files[0].path.lastIndexOf(files[0].name));
-                      const scanRes = await window.fileAPI.scanFiles(folderPath);
-                      if (scanRes.success && scanRes.data) setFiles(scanRes.data);
+                  const doRename = async () => {
+                    if (!window.fileAPI.renameFiles) {
+                      message.error(t('rename.featureNotLoaded'));
+                      return;
                     }
+                    setLoading(true);
+                    const ops = previewList.map(item => ({
+                      oldPath: item.oldPath,
+                      newPath: item.newPath,
+                    }));
+                    const res = await window.fileAPI.renameFiles(ops);
+                    if (res.success) {
+                      message.success(t('rename.renameSuccess', { count: previewList.length }));
+                      setPreviewList([]);
+                      if (files.length > 0) {
+                        const folderPath = files[0].path.substring(0, files[0].path.lastIndexOf(files[0].name));
+                        const scanRes = await window.fileAPI.scanFiles(folderPath);
+                        if (scanRes.success && scanRes.data) {
+                          setFiles(scanRes.data);
+                          setSelectedFiles(scanRes.data);
+                        }
+                      }
+                    } else {
+                      message.error(t('rename.renameFailed', { error: res.error }));
+                    }
+                    setLoading(false);
+                  };
+
+                  if (skipConfirm) {
+                    doRename();
                   } else {
-                    message.error('重命名失败：' + res.error);
+                    Modal.confirm({
+                      title: t('rename.confirmTitle'),
+                      content: t('rename.confirmContent', { count: previewList.length }),
+                      okText: t('rename.confirmOk'),
+                      cancelText: t('rename.confirmCancel'),
+                      okButtonProps: { type: 'primary' },
+                      onOk: doRename,
+                    });
                   }
-                  setLoading(false);
                 }} loading={loading}>
-                  执行重命名
+                  {t('rename.executeRename')}
                 </Button>
                 <Button onClick={async () => {
                   const res = await window.fileAPI.undoRename();
                   if (res.success) {
-                    message.success('已撤销');
+                    message.success(t('rename.undoSuccess'));
                     setPreviewList([]);
                     if (files.length > 0) {
                       const folderPath = files[0].path.substring(0, files[0].path.lastIndexOf(files[0].name));
                       const scanRes = await window.fileAPI.scanFiles(folderPath);
-                      if (scanRes.success && scanRes.data) setFiles(scanRes.data);
+                      if (scanRes.success && scanRes.data) {
+                        setFiles(scanRes.data);
+                        setSelectedFiles(scanRes.data);
+                      }
                     }
                   } else {
-                    message.error(res.error || '撤销失败');
+                    message.error(t('rename.undoFailed', { error: res.error }));
                   }
-                }}>
-                  撤销
+                }} disabled={loading}>
+                  {t('rename.undo')}
                 </Button>
               </Space>
             </>
@@ -742,18 +1982,810 @@ function App() {
     },
     {
       key: 'convert',
-      label: '格式转换',
+      label: t('tabs.convert'),
       children: (
-        <Card title="格式转换器" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)' }}>
-          <FormatConverter />
+        <Card 
+          title={t('convert.title')}
+          style={{ background: token.colorBgContainer, borderColor: token.colorBorder }}
+        >
+          <FormatConverter t={t} />
         </Card>
       ),
     },
     {
-      key: 'workflow',
-      label: '🚀 智能工作流',
+      key: 'classify',
+      label: t('tabs.classify'),
       children: (
-        <WorkflowPanel files={files} onFilesChange={setFiles} />
+        <>
+          <Card
+            size="small"
+            style={{ marginBottom: 16, background: token.colorBgContainer, borderColor: token.colorBorder }}
+          >
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Space wrap>
+                <Typography.Text strong>{t('classify.classifyMode')}:</Typography.Text>
+                <Radio.Group value={classifyMode} onChange={(e) => setClassifyMode(e.target.value)}>
+                  <Radio.Button value="fast">⚡ {t('classify.modeFast')}</Radio.Button>
+                  <Radio.Button value="basic">📋 {t('classify.modeBasic')}</Radio.Button>
+                  <Radio.Button value="enhanced">🧠 {t('classify.modeEnhanced')}</Radio.Button>
+                  <Radio.Button value="cloud">☁️ {t('classify.modeCloud')}</Radio.Button>
+                  <Radio.Button value="hybrid">🔀 {t('classify.modeHybrid')}</Radio.Button>
+                </Radio.Group>
+              </Space>
+            </Space>
+          </Card>
+
+          <Card
+            title={t('classify.title')}
+            style={{ marginBottom: 16, background: token.colorBgContainer, borderColor: token.colorBorder }}
+            extra={
+              <Button onClick={() => setClassifyRules([])} size="small" danger disabled={classifyRules.length === 0}>
+                {t('classify.clearRules')}
+              </Button>
+            }
+          >
+            {(classifyMode === 'basic' || classifyMode === 'hybrid') && ocrText && (
+              <Card size="small" style={{ marginBottom: 16, background: token.colorBgLayout }}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Space>
+                    <FileTextOutlined />
+                    <span style={{ fontWeight: 600, color: token.colorText }}>{t('classify.contentAnalysis')}</span>
+                  </Space>
+                  <Button type="primary" size="small" onClick={handleClassifyContent}>
+                    {t('classify.analyzeContent')}
+                  </Button>
+                </Space>
+              </Card>
+            )}
+            {classifyMode === 'cloud' && (
+              <Card size="small" style={{ marginBottom: 16, background: token.colorBgLayout }}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Space>
+                    <CloudOutlined />
+                    <span style={{ fontWeight: 600, color: token.colorText }}>{t('ai.cloudTitle')}</span>
+                    <Button type="link" size="small" onClick={() => setShowAISettings(!showAISettings)}>
+                      {t('ai.settings')}
+                    </Button>
+                  </Space>
+                  {showAISettings && (
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      <Space>
+                        <span style={{ color: token.colorText }}>{t('ai.provider')}:</span>
+                        <Select
+                          value={apiProvider}
+                          onChange={setApiProvider}
+                          style={{ width: 150 }}
+                          options={[
+                            { value: 'openai', label: 'OpenAI' },
+                            { value: 'deepseek', label: 'DeepSeek' },
+                          ]}
+                        />
+                      </Space>
+                      <Space>
+                        <KeyOutlined />
+                        <Input.Password
+                          value={apiKey}
+                          onChange={(e) => setApiKey(e.target.value)}
+                          style={{ width: 300 }}
+                          placeholder={t('ai.apiKeyPlaceholder')}
+                        />
+                        <Button size="small" onClick={handleSaveAPIKey}>
+                          {t('ai.save')}
+                        </Button>
+                      </Space>
+                      {apiKeyConfigured && (
+                        <Tag color="green">{t('ai.apiKeyConfigured')}</Tag>
+                      )}
+                    </Space>
+                  )}
+                  {!apiKeyConfigured && !showAISettings && (
+                    <div style={{ color: token.colorWarning, fontSize: '13px' }}>
+                      {t('ai.apiKeyNotSetHint')}
+                    </div>
+                  )}
+                  {apiKeyConfigured && (
+                    <Button type="primary" size="small" onClick={handleAPIClassify} loading={apiClassifying} disabled={!ocrText}>
+                      {t('ai.analyzeWithCloud')}
+                    </Button>
+                  )}
+                  {apiResult && (
+                    <div style={{ padding: '8px 12px', background: token.colorBgContainer, borderRadius: 6, border: `1px solid ${token.colorBorder}` }}>
+                      <Space>
+                        <Tag color="blue">{t('ai.category')}: {apiResult.category}</Tag>
+                        <Tag color="green">{t('ai.confidence')}: {Math.round(apiResult.confidence * 100)}%</Tag>
+                      </Space>
+                      {apiResult.reasoning && (
+                        <p style={{ margin: '8px 0 0', fontSize: '12px', color: token.colorTextSecondary }}>
+                          {t('ai.reasoning')}: {apiResult.reasoning}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </Space>
+              </Card>
+            )}
+            {classifyMode === 'enhanced' && (
+              <Card size="small" style={{ marginBottom: 16, background: token.colorBgLayout }}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Space>
+                    <FileTextOutlined />
+                    <span style={{ fontWeight: 600, color: token.colorText }}>{t('ai.title')}</span>
+                    <Button type="link" size="small" onClick={() => setShowAISettings(!showAISettings)}>
+                      {t('ai.settings')}
+                    </Button>
+                  </Space>
+                  {ollamaRunning === false && (
+                    <div style={{ color: token.colorError, fontSize: '13px' }}>
+                      <p>{t('ai.ollamaNotRunning')}</p>
+                      <p style={{ fontSize: '12px', marginTop: 4 }}>
+                        {t('ai.installHint')}
+                      </p>
+                    </div>
+                  )}
+                  {ollamaRunning === true && !ollamaModels.includes(ollamaModel) && (
+                    <div style={{ color: token.colorWarning, fontSize: '13px' }}>
+                      {t('ai.modelNotDownload', { model: ollamaModel })}
+                    </div>
+                  )}
+                  {showAISettings && (
+                    <Space>
+                      <span style={{ color: token.colorText }}>{t('ai.modelName')}:</span>
+                      <Input
+                        value={ollamaModel}
+                        onChange={(e) => setOllamaModel(e.target.value)}
+                        style={{ width: 180 }}
+                        placeholder="qwen2.5:1.5b"
+                      />
+                      <Button size="small" onClick={handleSaveAIModel}>
+                        {t('ai.save')}
+                      </Button>
+                      <Button size="small" onClick={checkOllamaStatus}>
+                        {t('ai.refresh')}
+                      </Button>
+                    </Space>
+                  )}
+                  {ollamaRunning && (
+                    <Button type="primary" size="small" onClick={handleClassifyContent} loading={ollamaClassifying} disabled={!ocrText}>
+                      {t('ai.analyzeWithAI')}
+                    </Button>
+                  )}
+                  {ollamaResult && (
+                    <div style={{ padding: '8px 12px', background: token.colorBgContainer, borderRadius: 6, border: `1px solid ${token.colorBorder}` }}>
+                      <Space>
+                        <Tag color="blue">{t('ai.category')}: {ollamaResult.category}</Tag>
+                        <Tag color="green">{t('ai.confidence')}: {Math.round(ollamaResult.confidence * 100)}%</Tag>
+                      </Space>
+                      {ollamaResult.reasoning && (
+                        <p style={{ margin: '8px 0 0', fontSize: '12px', color: token.colorTextSecondary }}>
+                          {t('ai.reasoning')}: {ollamaResult.reasoning}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </Space>
+              </Card>
+            )}
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Space wrap>
+                <span style={{ fontWeight: 600, color: token.colorText }}>{t('classify.addRule')}：</span>
+                {classifyRuleTypes.map(rt => (
+                  <Button
+                    key={rt.value}
+                    icon={<PlusOutlined />}
+                    onClick={() => handleAddClassifyRule(rt.value)}
+                    size="small"
+                  >
+                    {t(`classify.${rt.value === 'byExtension' ? 'byExtension' : rt.value === 'byKeyword' ? 'byKeyword' : rt.value === 'bySize' ? 'bySize' : 'byDate'}`)}
+                  </Button>
+                ))}
+              </Space>
+
+              {classifyRules.length > 0 && (
+                <Space direction="vertical" style={{ width: '100%' }} size="small">
+                  {classifyRules.map((rule, index) => (
+                    <Card
+                      key={index}
+                      size="small"
+                      style={{
+                        background: token.colorBgContainer,
+                        border: `1px solid ${token.colorBorder}`,
+                        borderLeft: `4px solid ${token.colorWarning}`,
+                      }}
+                      title={
+                        <Space>
+                          <span style={{ fontWeight: 600, color: token.colorText }}>{t('rename.rule')} {index + 1}</span>
+                          <Select
+                            value={rule.type}
+                            onChange={(value) => {
+                              handleUpdateClassifyRule(index, createClassifyRule(value));
+                            }}
+                            options={classifyRuleTypes}
+                            style={{ width: 150 }}
+                            size="small"
+                          />
+                        </Space>
+                      }
+                      extra={
+                        <Button
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleDeleteClassifyRule(index)}
+                          size="small"
+                          danger
+                          title={t('common.delete')}
+                        />
+                      }
+                    >
+                      <Space direction="vertical" style={{ width: '100%' }} size="small">
+                        {rule.type === 'byExtension' && (
+                          <Space>
+                            <span style={{ color: token.colorText }}>{t('classify.extensions')}：</span>
+                            <Input
+                              value={rule.params.extension || ''}
+                              onChange={(e) => handleUpdateClassifyRule(index, { ...rule, params: { ...rule.params, extension: e.target.value } })}
+                              placeholder={t('classify.extensionPlaceholder')}
+                              style={{ width: 150 }}
+                            />
+                          </Space>
+                        )}
+                        {rule.type === 'byKeyword' && (
+                          <Space>
+                            <span style={{ color: token.colorText }}>{t('classify.keyword')}：</span>
+                            <Input
+                              value={rule.params.keyword || ''}
+                              onChange={(e) => handleUpdateClassifyRule(index, { ...rule, params: { ...rule.params, keyword: e.target.value } })}
+                              placeholder={t('classify.keywordPlaceholder')}
+                              style={{ width: 150 }}
+                            />
+                          </Space>
+                        )}
+                        {rule.type === 'bySize' && (
+                          <Space wrap>
+                            <span style={{ color: token.colorText }}>{t('classify.minSize')}：</span>
+                            <InputNumber
+                              value={rule.params.minSize ? rule.params.minSize / (1024 * 1024) : undefined}
+                              onChange={(v) => handleUpdateClassifyRule(index, { ...rule, params: { ...rule.params, minSize: v ? v * 1024 * 1024 : undefined } })}
+                              style={{ width: 100 }}
+                              min={0}
+                              placeholder={t('classify.optional')}
+                            />
+                            <span style={{ color: token.colorText }}>{t('classify.maxSize')}：</span>
+                            <InputNumber
+                              value={rule.params.maxSize ? rule.params.maxSize / (1024 * 1024) : undefined}
+                              onChange={(v) => handleUpdateClassifyRule(index, { ...rule, params: { ...rule.params, maxSize: v ? v * 1024 * 1024 : undefined } })}
+                              style={{ width: 100 }}
+                              min={0}
+                              placeholder={t('classify.optional')}
+                            />
+                          </Space>
+                        )}
+                        {rule.type === 'byDate' && (
+                          <Space wrap>
+                            <span style={{ color: token.colorText }}>{t('classify.days')}：</span>
+                            <InputNumber
+                              value={rule.params.days || 7}
+                              onChange={(v) => handleUpdateClassifyRule(index, { ...rule, params: { ...rule.params, days: v || 7 } })}
+                              style={{ width: 80 }}
+                              min={1}
+                            />
+                            <span style={{ color: token.colorText }}>{t('classify.condition')}：</span>
+                            <Select
+                              value={rule.params.dateMode || 'older'}
+                              onChange={(v) => handleUpdateClassifyRule(index, { ...rule, params: { ...rule.params, dateMode: v } })}
+                              options={[
+                                { value: 'older', label: t('classify.olderThan') },
+                                { value: 'newer', label: t('classify.newerThan') },
+                              ]}
+                              style={{ width: 100 }}
+                              size="small"
+                            />
+                          </Space>
+                        )}
+                        <Space>
+                          <span style={{ color: token.colorText }}>{t('classify.targetFolder')}：</span>
+                          <Input
+                            value={rule.targetFolder}
+                            onChange={(e) => handleUpdateClassifyRule(index, { ...rule, targetFolder: e.target.value })}
+                            placeholder={t('classify.targetFolderPlaceholder')}
+                            style={{ width: 150 }}
+                          />
+                        </Space>
+                      </Space>
+                    </Card>
+                  ))}
+                </Space>
+              )}
+
+              {classifyRules.length === 0 && (
+                <div className="ff-empty-state">
+                  <p style={{ margin: 0 }}>{t('classify.noRules')}</p>
+                  <p style={{ margin: '8px 0 0', fontSize: '12px' }}>
+                    {t('classify.ruleOrderHint')}
+                  </p>
+                </div>
+              )}
+
+              <Space>
+                <Button type="primary" onClick={handleClassifyPreview} disabled={classifyRules.length === 0}>
+                  {t('classify.preview')}
+                </Button>
+              </Space>
+            </Space>
+          </Card>
+
+          {classifyPreview.length > 0 && (
+            <>
+              <Table
+                dataSource={classifyPreview}
+                columns={[
+                  { title: t('classify.columns.oldPath'), dataIndex: 'oldPath', key: 'oldPath', ellipsis: true },
+                  { title: t('classify.columns.newPath'), dataIndex: 'newPath', key: 'newPath', ellipsis: true },
+                  { title: t('classify.columns.targetFolder'), dataIndex: 'matchedRule', key: 'matchedRule', width: 120 },
+                ]}
+                rowKey="oldPath"
+                pagination={{ pageSize: 10 }}
+                style={{ marginBottom: 16 }}
+              />
+              <Space>
+                <Button type="primary" danger onClick={handleExecuteClassify} loading={loading}>
+                  {t('classify.executeClassify')}
+                </Button>
+                <Button onClick={handleUndoClassify} disabled={loading}>
+                  {t('classify.undo')}
+                </Button>
+              </Space>
+            </>
+          )}
+
+          {classifyExecResults.length > 0 && (
+            <Card
+              title={t('classify.executionResults')}
+              size="small"
+              style={{ marginBottom: 16, background: token.colorBgContainer, borderColor: token.colorBorder }}
+            >
+              <Table
+                dataSource={classifyExecResults}
+                columns={[
+                  { title: t('classify.columns.fileName'), dataIndex: 'fileName', key: 'fileName', ellipsis: true },
+                  {
+                    title: t('classify.columns.targetPath'),
+                    dataIndex: 'newPath',
+                    key: 'newPath',
+                    ellipsis: { showTitle: true },
+                    render: (path: string, record: any) => (
+                      <Tooltip title={path}>
+                        <span style={{ color: record.status === 'skipped' ? token.colorError : token.colorText }}>
+                          {path}
+                        </span>
+                      </Tooltip>
+                    ),
+                  },
+                  {
+                    title: t('classify.columns.status'),
+                    dataIndex: 'status',
+                    key: 'status',
+                    width: 100,
+                    render: (status: string) => (
+                      <Tag color={status === 'moved' ? 'success' : 'error'}>
+                        {status === 'moved' ? t('classify.statusMoved') : t('classify.statusSkipped')}
+                      </Tag>
+                    ),
+                  },
+                  {
+                    title: t('classify.columns.reason'),
+                    dataIndex: 'reason',
+                    key: 'reason',
+                    width: 150,
+                    ellipsis: { showTitle: true },
+                    render: (reason: string) => reason ? <Tooltip title={reason}>{reason}</Tooltip> : '-',
+                  },
+                ]}
+                rowKey={(record) => record.oldPath}
+                pagination={{ pageSize: 10 }}
+              />
+            </Card>
+          )}
+
+          <Card
+            title={t('classify.contentClassifyTitle')}
+            size="small"
+            style={{ marginBottom: 16, background: token.colorBgContainer, borderColor: token.colorBorder }}
+          >
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Space>
+                <Typography.Text type="secondary" style={{ fontSize: '13px' }}>
+                  {t('classify.currentMode')}: <Tag color="blue">{t(`classify.mode${classifyMode.charAt(0).toUpperCase() + classifyMode.slice(1)}`)}</Tag>
+                </Typography.Text>
+              </Space>
+              <Space>
+                <Button type="primary" icon={<FileTextOutlined />} onClick={handleContentClassify} loading={contentClassifying}>
+                  {t('classify.scanAndClassify')}
+                </Button>
+                <Button danger onClick={handleExecuteContentClassify} disabled={contentClassifyResults.filter(r => r.selected).length === 0}>
+                  {t('classify.executeContentClassify')}
+                </Button>
+              </Space>
+              {classifyMode === 'enhanced' && ollamaRunning === false && (
+                <div style={{ color: token.colorError, fontSize: '13px' }}>
+                  ⚠️ {t('ai.ollamaNotRunning')}
+                </div>
+              )}
+              {classifyMode === 'cloud' && !apiKeyConfigured && (
+                <div style={{ color: token.colorWarning, fontSize: '13px' }}>
+                  ⚠️ {t('ai.apiKeyNotSetHint')}
+                </div>
+              )}
+            </Space>
+          </Card>
+
+          {contentClassifyResults.length > 0 && (
+            <Table
+              dataSource={contentClassifyResults}
+              columns={[
+                {
+                  title: t('classify.columns.select'),
+                  key: 'select',
+                  width: 60,
+                  render: (_: any, __: any, index: number) => (
+                    <input
+                      type="checkbox"
+                      checked={contentClassifyResults[index].selected}
+                      onChange={() => toggleContentClassifyResult(index)}
+                    />
+                  ),
+                },
+                { title: t('classify.columns.fileName'), dataIndex: 'fileName', key: 'fileName', ellipsis: true },
+                {
+                  title: t('classify.columns.category'),
+                  dataIndex: 'category',
+                  key: 'category',
+                  width: 120,
+                  render: (cat: string) => <Tag color={cat === 'other' ? 'default' : 'blue'}>{cat}</Tag>,
+                },
+                {
+                  title: t('classify.columns.confidence'),
+                  dataIndex: 'confidence',
+                  key: 'confidence',
+                  width: 100,
+                  render: (conf: number) => (
+                    <span style={{ color: conf >= 0.7 ? token.colorSuccess : conf >= 0.4 ? token.colorWarning : token.colorError }}>
+                      {Math.round(conf * 100)}%
+                    </span>
+                  ),
+                },
+                { title: t('classify.columns.targetFolder'), dataIndex: 'targetFolder', key: 'targetFolder', width: 120 },
+              ]}
+              rowKey="fileName"
+              pagination={{ pageSize: 10 }}
+              style={{ marginBottom: 16 }}
+            />
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'workflow',
+      label: t('tabs.workflow'),
+      children: (
+        <WorkflowPanel files={selectedFiles} allFiles={files} onFilesChange={setFiles} onSelectedFilesChange={setSelectedFiles} skipConfirm={skipConfirm} />
+      ),
+    },
+    {
+      key: 'dedup',
+      label: t('tabs.dedup'),
+      children: (
+        <>
+          <Card title={t('dedup.title')} size="small" style={{ marginBottom: 16 }}>
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Radio.Group value={dedupMode} onChange={(e) => setDedupMode(e.target.value)}>
+                <Radio.Button value="exact">{t('dedup.exactMode')}</Radio.Button>
+                <Radio.Button value="similar">{t('dedup.similarMode')}</Radio.Button>
+              </Radio.Group>
+              {dedupMode === 'similar' && (
+                <Space>
+                  <Typography.Text>{t('dedup.threshold')}:</Typography.Text>
+                  <Slider style={{ width: 200 }} value={dedupThreshold} onChange={setDedupThreshold} min={80} max={99} />
+                  <Typography.Text>{dedupThreshold}%</Typography.Text>
+                </Space>
+              )}
+              <Button type="primary" icon={<ScanOutlined />} onClick={handleScanDuplicates} loading={scanningDedup}>
+                {t('dedup.scanButton')}
+              </Button>
+            </Space>
+          </Card>
+          {dedupGroups.length > 0 && (
+            <Collapse
+              defaultActiveKey={['0']}
+              items={dedupGroups.map((group, groupIndex) => ({
+                key: String(groupIndex),
+                label: (
+                  <span>
+                    {group.hash
+                      ? `${t('dedup.groupLabel', { index: groupIndex + 1 })} (${t('dedup.md5Match')})`
+                      : `${t('dedup.groupLabel', { index: groupIndex + 1 })} (${t('dedup.similarity', { percent: Math.round((group.similarity || 0) * 100) })})`}
+                    {' - '}
+                    {group.files.length} {t('dedup.files')}
+                  </span>
+                ),
+                children: (
+                  <div>
+                    {group.files.map((file, fileIndex) => (
+                      <div key={file.path} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                        <Checkbox
+                          checked={(dedupChecked.get(groupIndex) || new Set()).has(fileIndex)}
+                          onChange={() => handleToggleDedupCheck(groupIndex, fileIndex)}
+                          style={{ marginRight: 8 }}
+                        />
+                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {file.name}
+                        </span>
+                        <span style={{ color: token.colorTextTertiary, fontSize: '12px', marginLeft: 8 }}>
+                          {new Date(file.mtime).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                    <Space style={{ marginTop: 12 }}>
+                      <Button danger size="small" onClick={() => handleDeleteSelected(groupIndex)}>
+                        {t('dedup.deleteSelected')}
+                      </Button>
+                      <Button icon={<FolderOpenOutlined />} size="small" onClick={() => handleMoveSelected(groupIndex)}>
+                        {t('dedup.moveSelected')}
+                      </Button>
+                      <Button size="small" onClick={() => handleSkipGroup(groupIndex)}>
+                        {t('dedup.skipGroup')}
+                      </Button>
+                    </Space>
+                  </div>
+                ),
+              }))}
+            />
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'ocr',
+      label: t('tabs.ocr'),
+      children: (
+        <>
+          <Card
+            size="small"
+            style={{ marginBottom: 16, background: token.colorBgContainer, borderColor: token.colorBorder }}
+          >
+            <Space>
+              <Typography.Text strong>{t('ocr.serviceStatus')}:</Typography.Text>
+              {paddleOCRStatus === 'starting' && (
+                <Tag color="processing">{t('ocr.serviceStarting')}</Tag>
+              )}
+              {paddleOCRStatus === 'running' && (
+                <Tag color="success">{t('ocr.serviceRunning')}</Tag>
+              )}
+              {paddleOCRStatus === 'stopped' && (
+                <Tag color="default">{t('ocr.serviceStopped')}</Tag>
+              )}
+              {paddleOCRStatus === 'failed' && (
+                <>
+                  <Tag color="error">{t('ocr.serviceFailed')}</Tag>
+                  <Button size="small" onClick={handleOpenPaddleOCRLog} disabled={!paddleOCRErrorLogPath}>
+                    {t('ocr.viewErrorLog')}
+                  </Button>
+                </>
+              )}
+            </Space>
+          </Card>
+
+          <Card title={t('ocr.title')} size="small" style={{ marginBottom: 16, background: token.colorBgContainer, borderColor: token.colorBorder }}>
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Space>
+                <Button icon={<FolderOpenOutlined />} onClick={handleSelectOCRFile}>
+                  {t('ocr.selectFile')}
+                </Button>
+                <Button type="primary" icon={<FileTextOutlined />} onClick={handleExtractText} loading={ocrExtracting} disabled={!ocrSelectedFile || paddleOCRStatus !== 'running'}>
+                  {t('ocr.extract')}
+                </Button>
+                <Button icon={<ExportOutlined />} onClick={handleExportMarkdown} disabled={!ocrText}>
+                  {t('ocr.exportMarkdown')}
+                </Button>
+              </Space>
+              <Space>
+                <Button icon={<FolderOpenOutlined />} onClick={handleSelectMultipleOCRFiles}>
+                  {t('ocr.selectMultipleFiles')}
+                </Button>
+                <Button type="primary" icon={<FileTextOutlined />} onClick={handleExtractMultipleFiles} loading={ocrMultiExtracting} disabled={ocrFiles.length === 0 || paddleOCRStatus !== 'running'}>
+                  {t('ocr.extractAll')}
+                </Button>
+                {ocrFiles.length > 0 && (
+                  <Button icon={<SaveOutlined />} onClick={handleSaveAllFiles} loading={ocrSaving} disabled={!hasUnsavedChanges}>
+                    {t('ocr.saveAll')}
+                  </Button>
+                )}
+              </Space>
+              {ocrSelectedFile && (
+                <div style={{ color: token.colorTextSecondary, fontSize: '12px' }}>
+                  {t('ocr.selectedFile')}: {ocrSelectedFile}
+                </div>
+              )}
+              {ocrFiles.length > 0 && (
+                <div style={{ color: token.colorTextSecondary, fontSize: '12px' }}>
+                  {t('ocr.selectedFilesCount', { count: ocrFiles.length })}
+                </div>
+              )}
+            </Space>
+          </Card>
+
+          {ocrExtracting && (
+            <Card size="small" style={{ marginBottom: 16, background: token.colorBgContainer, borderColor: token.colorBorder }}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Space>
+                  <span style={{ color: token.colorText }}>{t('ocr.extracting')}...</span>
+                  {ocrStatus && <Tag color="processing">{ocrStatus}</Tag>}
+                </Space>
+                <Progress percent={ocrProgress} status="active" />
+              </Space>
+            </Card>
+          )}
+
+          {ocrMultiExtracting && (
+            <Card size="small" style={{ marginBottom: 16, background: token.colorBgContainer, borderColor: token.colorBorder }}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Space>
+                  <span style={{ color: token.colorText }}>{t('ocr.extractingMultiple')}...</span>
+                  {ocrStatus && <Tag color="processing">{ocrStatus}</Tag>}
+                </Space>
+                <Progress percent={ocrProgress} status="active" />
+              </Space>
+            </Card>
+          )}
+
+          {ocrText && (
+            <Card
+              title={
+                <Space>
+                  <FileTextOutlined />
+                  <span style={{ color: token.colorTextHeading }}>{t('ocr.result')}</span>
+                  <Tag color="blue">{t('ocr.confidence')}: {Math.round(ocrConfidence)}%</Tag>
+                </Space>
+              }
+              size="small"
+              style={{ marginBottom: 16, background: token.colorBgContainer, borderColor: token.colorBorder }}
+              extra={
+                <Button
+                  size="small"
+                  type="primary"
+                  icon={<CloudOutlined />}
+                  onClick={handleOcrAiClassify}
+                  loading={ocrAiClassifying}
+                  disabled={!ocrText}
+                >
+                  {t('ocr.aiClassify')}
+                </Button>
+              }
+            >
+              <Typography.Paragraph
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  color: token.colorText,
+                  maxHeight: 400,
+                  overflow: 'auto',
+                }}
+              >
+                {ocrText}
+              </Typography.Paragraph>
+            </Card>
+          )}
+
+          {ocrFiles.length > 0 && ocrFiles.some(f => f.text) && (
+            <Card
+              title={
+                <Space>
+                  <FileTextOutlined />
+                  <span style={{ color: token.colorTextHeading }}>{t('ocr.multiResults')}</span>
+                </Space>
+              }
+              size="small"
+              style={{ marginBottom: 16, background: token.colorBgContainer, borderColor: token.colorBorder }}
+            >
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                {ocrFiles.filter(f => f.text).map((file) => {
+                  const realIndex = ocrFiles.indexOf(file);
+                  return (
+                    <Card
+                      key={realIndex}
+                      size="small"
+                      title={
+                        <Space>
+                          <span style={{ fontWeight: 500 }}>{file.name}</span>
+                          {file.confidence > 0 && (
+                            <Tag color="blue">{t('ocr.confidence')}: {Math.round(file.confidence)}%</Tag>
+                          )}
+                          {file.edited && (
+                            <Tag color="orange">{t('ocr.edited')}</Tag>
+                          )}
+                        </Space>
+                      }
+                      extra={
+                        <Space>
+                          <Button
+                            size="small"
+                            type="primary"
+                            icon={<SaveOutlined />}
+                            onClick={() => handleSaveSingleFile(realIndex)}
+                            loading={ocrSaving}
+                            disabled={!file.edited}
+                          >
+                            {t('ocr.save')}
+                          </Button>
+                          <Button
+                            size="small"
+                            onClick={() => handleRestoreSingleFile(realIndex)}
+                            disabled={!file.edited}
+                          >
+                            {t('ocr.restore')}
+                          </Button>
+                        </Space>
+                      }
+                    >
+                      <Space direction="vertical" style={{ width: '100%' }}>
+                        <Input.TextArea
+                          value={file.text}
+                          onChange={(e) => handleOcrTextChange(realIndex, e.target.value)}
+                          autoSize={{ minRows: 3, maxRows: 10 }}
+                          style={{ fontFamily: 'monospace', fontSize: '13px' }}
+                        />
+                        <div style={{ textAlign: 'right', color: token.colorTextTertiary, fontSize: '12px' }}>
+                          {t('ocr.charCount')}: {file.text.length}
+                        </div>
+                      </Space>
+                    </Card>
+                  );
+                })}
+              </Space>
+            </Card>
+          )}
+
+          {ocrAiResult && (
+            <Card
+              title={
+                <Space>
+                  <CloudOutlined />
+                  <span style={{ color: token.colorTextHeading }}>{t('ocr.aiClassifyResult')}</span>
+                </Space>
+              }
+              size="small"
+              style={{ marginBottom: 16, background: token.colorBgContainer, borderColor: token.colorBorder }}
+            >
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Space>
+                  <Tag color="blue">{t('classify.columns.category')}: {ocrAiResult.category}</Tag>
+                  <Tag color="green">{t('ocr.aiRawResponse')}: {ocrAiResult.rawResponse}</Tag>
+                </Space>
+                <Space>
+                  <Button
+                    type="primary"
+                    onClick={() => {
+                      if (!ocrSelectedFile) return;
+                      const targetDir = ocrAiResult.category === 'other' ? 'other' : ocrAiResult.category;
+                      message.info(t('ocr.moveToFolder', { folder: targetDir }));
+                    }}
+                  >
+                    {t('ocr.moveToFolder', { folder: ocrAiResult.category })}
+                  </Button>
+                </Space>
+              </Space>
+            </Card>
+          )}
+
+          <div style={{ textAlign: 'center', marginTop: 24, color: token.colorTextTertiary, fontSize: '12px' }}>
+            {t('ocr.paddleOCRAttribution')}
+          </div>
+        </>
+      ),
+    },
+    {
+      key: 'lan',
+      label: t('tabs.lan'),
+      children: (
+        <LanShare darkMode={darkMode} />
       ),
     },
   ];
@@ -762,72 +2794,250 @@ function App() {
     <ConfigProvider theme={{
       token: {
         colorPrimary: '#4f46e5',
-        colorSuccess: '#10b981',
+        colorSuccess: darkMode ? '#10b981' : '#10b981',
         colorError: '#ef4444',
-        colorText: '#1a1a2e',
-        colorTextSecondary: '#6b7280',
-        colorTextTertiary: '#9ca3af',
-        colorTextHeading: '#1a1a2e',
-        colorBgContainer: '#ffffff',
-        colorBgLayout: '#f8f9fa',
-        colorBorder: '#e5e7eb',
-        colorBorderSecondary: '#f0f0f0',
-        borderRadius: 8,
+        colorText: darkMode ? 'rgba(255, 255, 255, 0.85)' : '#1a1a2e',
+        colorTextSecondary: darkMode ? 'rgba(255, 255, 255, 0.65)' : '#6b7280',
+        colorTextTertiary: darkMode ? 'rgba(255, 255, 255, 0.45)' : '#9ca3af',
+        colorTextHeading: darkMode ? 'rgba(255, 255, 255, 0.85)' : '#1a1a2e',
+        colorBgContainer: darkMode ? 'rgba(45, 45, 45, 0.7)' : 'rgba(255, 255, 255, 0.7)',
+        colorBgLayout: darkMode ? '#1a1a2e' : '#f5f7fa',
+        colorBgElevated: darkMode ? 'rgba(31, 31, 31, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+        colorBorder: darkMode ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+        colorBorderSecondary: darkMode ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
+        borderRadius: 12,
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       },
+      algorithm: darkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
       components: {
         Button: {
           borderRadius: 8,
           borderRadiusLG: 8,
           borderRadiusSM: 8,
+          defaultBg: darkMode ? 'rgba(51, 51, 51, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+          defaultColor: darkMode ? 'rgba(255, 255, 255, 0.85)' : '#1a1a2e',
+          defaultBorderColor: darkMode ? 'rgba(68, 68, 68, 0.8)' : 'rgba(217, 217, 217, 0.8)',
         },
         Card: {
-          borderRadiusLG: 8,
+          borderRadiusLG: 12,
+          boxShadow: darkMode ? '0 4px 24px rgba(0,0,0,0.2)' : '0 4px 24px rgba(0,0,0,0.06)',
         },
         Table: {
           borderRadius: 8,
-          headerBg: '#f8f9fa',
-          rowHoverBg: '#f3f4f6',
+          rowHoverBg: darkMode ? 'rgba(38, 38, 38, 0.8)' : 'rgba(240, 240, 255, 0.8)',
+          headerBg: darkMode ? 'rgba(31, 31, 31, 0.8)' : 'rgba(250, 250, 250, 0.8)',
+          headerColor: darkMode ? 'rgba(255, 255, 255, 0.85)' : '#1a1a2e',
         },
         Input: {
           borderRadius: 8,
           borderRadiusLG: 8,
           borderRadiusSM: 8,
           activeBorderColor: '#4f46e5',
-          activeShadow: '0 0 0 2px rgba(79, 70, 229, 0.1)',
+          activeShadow: darkMode ? '0 0 0 2px rgba(79, 70, 229, 0.3)' : '0 0 0 2px rgba(79, 70, 229, 0.1)',
+          colorText: darkMode ? 'rgba(255, 255, 255, 0.85)' : '#1a1a2e',
         },
         Select: {
           borderRadius: 8,
           borderRadiusLG: 8,
           borderRadiusSM: 8,
+          optionSelectedBg: darkMode ? 'rgba(38, 38, 38, 0.8)' : 'rgba(240, 240, 255, 0.8)',
+        },
+        Tabs: {
+          itemColor: darkMode ? 'rgba(255, 255, 255, 0.65)' : '#6b7280',
+          itemActiveColor: '#4f46e5',
+          itemSelectedColor: '#4f46e5',
+        },
+        Modal: {
+        },
+        Dropdown: {
+          colorBgElevated: darkMode ? 'rgba(31, 31, 31, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+        },
+        Switch: {
         },
       },
     }}>
       <CustomTitleBar title="File Flow" />
-      <div style={{ padding: 24, minHeight: 'calc(100vh - 32px)', background: token.colorBgLayout }}>
-        <h1 style={{ color: token.colorTextHeading }}>FileFlow - 智能文件处理中心</h1>
-        
-        {/* 选择文件夹按钮 */}
-        <Space style={{ marginBottom: 24 }}>
-          <Button type="primary" onClick={handleSelectAndScan} loading={loading} size="large">
-            选择文件夹并扫描
-          </Button>
-        </Space>
-
-        {/* 标签页 */}
-        <Tabs items={tabItems} defaultActiveKey="rename" size="large" />
-
-        {/* 文件列表 */}
-        {files.length > 0 && (
-          <Table
-            dataSource={files}
-            columns={fileColumns}
-            rowKey="path"
-            pagination={{ pageSize: 10 }}
-            style={{ marginTop: 16 }}
+      <TextThemeWrapper>
+        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', paddingTop: 32 }}>
+          <Sidebar
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+            t={t}
           />
-        )}
-      </div>
+          
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div className="ff-header" style={{ padding: '0 24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h1 style={{ color: darkMode ? 'rgba(255, 255, 255, 0.85)' : '#1a1a2e', margin: 0, fontSize: 20, fontWeight: 600 }}>
+                  {t('app.title')}
+                </h1>
+                <Space size="middle">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<SyncOutlined spin={checkingUpdate} />}
+                    onClick={() => handleCheckForUpdates()}
+                    loading={checkingUpdate}
+                    title={t('update.checkForUpdates')}
+                  />
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<SettingOutlined />}
+                    onClick={() => setShowSettingsModal(true)}
+                    title={t('settings.title')}
+                  />
+                </Space>
+              </div>
+            </div>
+
+            <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+              <div style={{ marginBottom: 24 }}>
+                <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                  <Space size="large">
+                    <Button type="primary" onClick={handleSelectAndScan} loading={loading} size="large">
+                      {t('app.selectFolder')}
+                    </Button>
+                    <Space size="small">
+                      <Switch
+                        size="small"
+                        checked={skipConfirm}
+                        onChange={handleToggleSkipConfirm}
+                      />
+                      <span style={{ color: darkMode ? 'rgba(255, 255, 255, 0.65)' : '#6b7280', fontSize: '13px' }}>
+                        {t('app.skipConfirm')}
+                      </span>
+                    </Space>
+                  </Space>
+
+                  {selectedFolder && (
+                    <Space direction="vertical" size="small">
+                      <Breadcrumb
+                        items={[
+                          { title: t('app.selectedFolder') },
+                          { title: selectedFolder.split(/[\\/]/).pop() || selectedFolder },
+                        ]}
+                      />
+                      <Tag color="blue">
+                        {t('app.fileCount', { count: files.length })}
+                      </Tag>
+                    </Space>
+                  )}
+                </Space>
+              </div>
+
+              {renderContent()}
+
+              {files.length > 0 && (
+                <>
+                  <div style={{ marginTop: 16, marginBottom: 8, color: darkMode ? 'rgba(255, 255, 255, 0.65)' : '#6b7280', fontSize: '13px' }}>
+                    {t('app.selectedFiles', { selected: selectedFiles.length, total: files.length })}
+                  </div>
+                  <Table
+                    dataSource={files}
+                    columns={fileColumns}
+                    rowKey="path"
+                    pagination={{ pageSize: 10 }}
+                    rowSelection={{
+                      selectedRowKeys: selectedFiles.map(f => f.path),
+                      onChange: (_selectedRowKeys: React.Key[], selectedRows: FileInfo[]) => {
+                        setSelectedFiles(selectedRows);
+                      },
+                    }}
+                  />
+                </>
+              )}
+            </div>
+
+            <StatusBar
+              paddleOCRStatus={paddleOCRStatus}
+              ollamaRunning={ollamaRunning}
+              lastAction={selectedFolder ? `${t('app.selectedFolder')}: ${selectedFolder}` : undefined}
+              t={t}
+            />
+          </div>
+        </div>
+      </TextThemeWrapper>
+
+      <SettingsDrawer
+        open={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        darkMode={darkMode}
+        onToggleDarkMode={handleToggleDarkMode}
+        lang={lang}
+        onToggleLang={handleToggleLang}
+        t={t}
+      />
+
+      <Modal
+        title={t('classify.folderCreateTitle')}
+        open={folderCreateModalOpen}
+        onCancel={handleFolderCreateCancel}
+        footer={
+          <Space>
+            <Button onClick={handleFolderCreateCancel}>
+              {t('classify.folderCreateCancel')}
+            </Button>
+            <Button type="primary" onClick={handleFolderCreateConfirm}>
+              {t('classify.folderCreateConfirm')}
+            </Button>
+          </Space>
+        }
+        width={500}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <div style={{ color: darkMode ? 'rgba(255, 255, 255, 0.85)' : '#1a1a2e' }}>
+            {t('classify.folderCreateContent')}
+          </div>
+          <Space>
+            <Button size="small" onClick={handleToggleAllFolders}>
+              {pendingFolders.every(f => f.checked) ? t('classify.deselectAll') : t('classify.selectAll')}
+            </Button>
+          </Space>
+          <div style={{
+            maxHeight: 300,
+            overflow: 'auto',
+            border: `1px solid ${darkMode ? '#303030' : '#e5e7eb'}`,
+            borderRadius: 6,
+            padding: '8px 12px',
+          }}>
+            {pendingFolders.map((folder, index) => (
+              <div
+                key={folder.dir}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '6px 0',
+                  borderBottom: index < pendingFolders.length - 1 ? `1px solid ${darkMode ? '#242424' : '#f0f0f0'}` : 'none',
+                }}
+              >
+                <Checkbox
+                  checked={folder.checked}
+                  onChange={() => {
+                    setPendingFolders(prev => prev.map((f, i) =>
+                      i === index ? { ...f, checked: !f.checked } : f
+                    ));
+                  }}
+                  style={{ marginRight: 8 }}
+                />
+                <span style={{
+                  flex: 1,
+                  fontFamily: 'monospace',
+                  fontSize: '13px',
+                  color: darkMode ? 'rgba(255, 255, 255, 0.85)' : '#1a1a2e',
+                }}>
+                  {folder.dir.split(/[\\/]/).pop() || folder.dir}
+                </span>
+                <Tag color="blue" style={{ marginLeft: 8 }}>
+                  {t('classify.folderFileCount', { count: folder.count })}
+                </Tag>
+              </div>
+            ))}
+          </div>
+        </Space>
+      </Modal>
     </ConfigProvider>
   );
 }

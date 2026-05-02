@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import './CustomTitleBar.css';
 
 interface CustomTitleBarProps {
@@ -6,6 +7,7 @@ interface CustomTitleBarProps {
 }
 
 function CustomTitleBar({ title = 'File Flow' }: CustomTitleBarProps) {
+  const { t } = useTranslation();
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
@@ -36,12 +38,12 @@ function CustomTitleBar({ title = 'File Flow' }: CustomTitleBarProps) {
         <span className="titlebar-title">{title}</span>
       </div>
       <div className="titlebar-controls">
-        <button className="titlebar-button" onClick={handleMinimize} title="最小化">
+        <button className="titlebar-button" onClick={handleMinimize} title={t('titleBar.minimize')}>
           <svg width="12" height="12" viewBox="0 0 12 12">
             <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5" />
           </svg>
         </button>
-        <button className="titlebar-button" onClick={handleMaximize} title={isMaximized ? '还原' : '最大化'}>
+        <button className="titlebar-button" onClick={handleMaximize} title={isMaximized ? t('titleBar.restore') : t('titleBar.maximize')}>
           <svg width="12" height="12" viewBox="0 0 12 12">
             {isMaximized ? (
               <>
@@ -53,7 +55,7 @@ function CustomTitleBar({ title = 'File Flow' }: CustomTitleBarProps) {
             )}
           </svg>
         </button>
-        <button className="titlebar-button titlebar-close" onClick={handleClose} title="关闭">
+        <button className="titlebar-button titlebar-close" onClick={handleClose} title={t('titleBar.close')}>
           <svg width="12" height="12" viewBox="0 0 12 12">
             <line x1="1" y1="1" x2="11" y2="11" stroke="currentColor" strokeWidth="1.5" />
             <line x1="11" y1="1" x2="1" y2="11" stroke="currentColor" strokeWidth="1.5" />

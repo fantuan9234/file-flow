@@ -1,187 +1,213 @@
-# FileFlow - 智能文件批量处理中心
+# FileFlow - Smart File Batch Processing Center
 
 <p align="center">
-  <strong>一个本地运行的桌面工具，集批量重命名、多格式转换、可保存的智能工作流于一体，彻底解决办公文件处理痛点。</strong>
+  <strong>A desktop application for batch renaming, format conversion, and intelligent workflows — streamline your file management with one click.</strong>
 </p>
 
 <p align="center">
-  <a href="#功能特性">功能特性</a> •
-  <a href="#技术栈">技术栈</a> •
-  <a href="#安装与运行">安装与运行</a> •
-  <a href="#使用说明">使用说明</a> •
-  <a href="#打包发布">打包发布</a> •
-  <a href="#开源协议">开源协议</a>
+  <a href="#features">Features</a> •
+  <a href="#tech-stack">Tech Stack</a> •
+  <a href="#installation">Installation</a> •
+  <a href="#getting-started">Getting Started</a> •
+  <a href="#build">Build</a> •
+  <a href="#license">License</a>
+</p>
+
+<p align="center">
+  <a href="README.zh-CN.md">中文文档</a>
 </p>
 
 ---
 
-## ✨ 功能特性
+## ✨ Features
 
-| 功能模块 | 说明 |
-|---------|------|
-| 📂 **文件夹扫描** | 递归扫描文件夹，自动排除隐藏文件和系统目录 |
-| ️ **批量重命名** | 前缀、后缀、查找替换、插入日期、顺序编号，支持规则链组合 |
-| 🔄 **多格式转换** | `.docx → .md`、`.md → .html`、`.md → .pdf`、`.html → .md`、`.jpg ↔ .png` |
-| ⚡ **智能工作流** | 自由组合重命名 + 格式转换步骤，按顺序一键执行 |
-| 💾 **模板管理** | 保存/加载常用规则模板，内置示例模板开箱即用 |
-| ↩️ **撤销保护** | 支持单步/整体撤销，格式转换默认保留原文件 |
-
----
-
-##  项目截图
-
-### 批量重命名
-
-支持多种重命名规则，可自由组合使用：
-
-![批量重命名](screenshots/rename.png)
-
-### 格式转换
-
-支持 Word、Markdown、HTML、图片等多种格式互转：
-
-![格式转换](screenshots/convert.png)
-
-### 智能工作流
-
-自由组合重命名与格式转换步骤，一键执行复杂任务：
-
-![智能工作流](screenshots/workflow.png)
+| Module | Description |
+|--------|-------------|
+| 📂 **Folder Scanning** | Recursively scan folders, automatically excluding hidden files and system directories |
+| ✏️ **Batch Rename** | Prefix, suffix, find & replace, date insertion, sequential numbering — with composable rule chains |
+| 🔄 **Format Conversion** | `.docx → .md`, `.md → .html`, `.md → .pdf`, `.html → .md`, `.jpg ↔ .png` |
+| 📁 **Smart Classification** | Auto-sort files by extension, keyword, size, or date into organized folders |
+| ⚡ **Intelligent Workflow** | Combine rename + convert + classify steps, execute in order with one click |
+| 💾 **Template System** | Save/load workflow templates, with built-in examples ready to use |
+| ↩️ **Undo Protection** | Step-by-step and full workflow undo support, original files preserved by default |
+| 🌙 **Dark Mode** | Seamless light/dark theme switching with smooth transitions |
+| 🌍 **Internationalization** | Full Chinese & English language support |
 
 ---
 
-## 💡 谁最需要 FileFlow？
+## 📸 Screenshots
 
-### 🎨 场景一：设计师的交付物整理
+### Batch Rename
 
-> **"老板，这是最终版_修改3_打死也不改_真的最终.psd"**
+Support multiple rename rules, freely composable:
 
-| 遇到的麻烦 | FileFlow 解决方案 |
-|-----------|------------------|
-| 文件夹里躺着几十个导出的切图，命名全是 `画板1.png`、`未标题-1.jpg`。每次交付前，都得手动把文件名改成符合规范的格式，眼睛都快看瞎了。 | 1. 把文件夹拖进来<br>2. 用 **查找替换** 功能，一键把所有 `画板` 改成项目名 `App-Home`<br>3. 叠个甲，用 **规则链** 加上 **前缀** `v2.0_` 和 **序号** `_01`<br>4. 点击运行，杂乱的文件立刻整整齐齐 |
+![Batch Rename](screenshots/rename.png)
 
-### 💻 场景二：开发者的技术文档搬家
+### Format Conversion
 
-> **"API 文档是 Markdown 写的，产品经理非要看 Word！"**
+Support Word, Markdown, HTML, images and more:
 
-| 遇到的麻烦 | FileFlow 解决方案 |
-|-----------|------------------|
-| 你用 Markdown 写好了接口文档，产品经理却需要 `.docx` 版本去走审批流程。你只能手动复制粘贴，格式还乱成一团。 | 1. 使用最强技能 **智能工作流**<br>2. **第一步**：添加 **格式转换** 步骤，把 `.md` 文件批量转成 `.docx`<br>3. **第二步**：添加 **重命名** 步骤，给转换好的文件统一加上日期后缀 `_20250128` 和版本号 `_v1`<br>4. 全自动处理，一分钟干完一下午的活 |
+![Format Conversion](screenshots/convert.png)
 
-###  场景三：行政/项目管理人员的资料归档
+### Smart Classification
 
-> **"全公司的报销单命名格式居然不一样！"**
+Auto-sort files by customizable rules:
 
-| 遇到的麻烦 | FileFlow 解决方案 |
-|-----------|------------------|
-| 季度末需要归档上百份散落的发票、合同扫描件，有的叫"微信图片"，有的叫"报销单(1)"，完全没法按日期排序查找。 | 1. 用 **重命名规则** 统一加上 **日期前缀**<br>2. 用 **查找替换** 清掉文件名里乱七八糟的符号<br>3. 如果有照片格式不对，提前用 **格式转换** 统一转成 `JPG`<br>4. 保存这套完美的 **工作流模板**，下个季度点一下就能复用！ |
+![Smart Classification](screenshots/classify.png)
 
-### ⚡ 更多典型场景
+### Intelligent Workflow
 
-| 人群 | 使用场景 |
-|------|---------|
-| 📸 **摄影/自媒体人** | 用 `日期+序号` 规则批量处理原始素材，再用 `格式转换` 统一转成适合发布的格式 |
-| 📚 **教育/科研工作者** | 把通过 OCR 导出的论文资料，用 `查找替换` 和 `序号` 快速规范命名，方便后续引用 |
-| 💼 **财务/金融从业者** | 把 `.html` 格式的电子发票批量转为更易保存的 `.md` 或 `.pdf` 格式，并自动重命名归档 |
-| 🤖 **AI 训练师** | 训练素材库的图片命名和格式五花八门，通过 FileFlow 可以一键统一，让 AI 更准确地识别 |
+Combine rename, conversion, and classification steps for complex tasks:
 
-> 💡 **商业价值**：类似场景下，企业通过自动化文件处理可**消除 90% 的人工文件命名工作**，并将日常重复性操作耗时**每日减少超 3 小时**。
+![Intelligent Workflow](screenshots/workflow.png)
 
 ---
 
-## 🛠️ 技术栈
+## 💡 Who Needs FileFlow?
 
-| 类别 | 技术 |
-|------|------|
-| **框架** | [Electron](https://www.electronjs.org/) + [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) |
-| **UI** | [Ant Design](https://ant.design/) |
-| **构建工具** | [electron-vite](https://electron-vite.org/) + [Vite](https://vitejs.dev/) |
-| **打包工具** | [electron-builder](https://www.electron.build/) |
-| **文档转换** | `mammoth`、`marked`、`md-to-pdf`、`turndown` |
-| **图片处理** | `sharp` |
+### 🎨 Scenario 1: Designer's Deliverable Organization
+
+> **"final_v3_really_final_EDITED.psd"**
+
+| The Problem | FileFlow Solution |
+|-------------|-------------------|
+| Dozens of exported assets named `artboard1.png`, `untitled-1.jpg`. Before delivery, you manually rename everything to match naming conventions. | 1. Drag the folder in<br>2. Use **Find & Replace** to change all `artboard` to `App-Home`<br>3. Stack a **Prefix** `v2.0_` and **Sequence** `_01`<br>4. Click run — messy files instantly organized |
+
+### 💻 Scenario 2: Developer's Documentation Migration
+
+> **"API docs are in Markdown, but the PM needs Word!"**
+
+| The Problem | FileFlow Solution |
+|-------------|-------------------|
+| You wrote API docs in Markdown, but the PM needs `.docx` for approval workflow. Manual copy-paste breaks formatting. | 1. Use the **Smart Workflow**<br>2. **Step 1**: Add a **Format Conversion** step, batch convert `.md` to `.docx`<br>3. **Step 2**: Add a **Rename** step with date suffix `_20250128` and version `_v1`<br>4. Fully automated — an afternoon's work done in one minute |
+
+### 📋 Scenario 3: Admin/Project Manager's Filing
+
+> **"Company expense reports have inconsistent naming!"**
+
+| The Problem | FileFlow Solution |
+|-------------|-------------------|
+| Hundreds of scattered invoices and contract scans named "WeChat Image", "Receipt (1)" — impossible to sort by date. | 1. Use **Rename Rules** to add **date prefixes**<br>2. Use **Find & Replace** to clean up messy characters<br>3. Use **Format Conversion** to unify image formats<br>4. Save as a **Workflow Template** — reuse next quarter with one click! |
+
+### ⚡ More Use Cases
+
+| User | Use Case |
+|------|----------|
+| 📸 **Photographers / Content Creators** | Batch rename raw materials with `date+sequence`, convert to publish-ready formats |
+| 📚 **Researchers / Educators** | Clean up OCR-exported papers with find/replace and sequential numbering for easy citation |
+| 💼 **Finance Professionals** | Batch convert `.html` e-invoices to `.md` or `.pdf`, auto-rename for archiving |
+| 🤖 **AI Trainers** | Unify training dataset naming and formats with one click for better AI recognition |
+
+> 💡 **Business Impact**: Organizations using automated file processing can **eliminate 90% of manual file naming work** and **reduce daily repetitive tasks by 3+ hours**.
 
 ---
 
-## 🚀 安装与运行
+## 🛠️ Tech Stack
 
-### 开发环境
+| Category | Technology |
+|----------|------------|
+| **Framework** | [Electron](https://www.electronjs.org/) + [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) |
+| **UI Library** | [Ant Design](https://ant.design/) |
+| **Build Tool** | [electron-vite](https://electron-vite.org/) + [Vite](https://vitejs.dev/) |
+| **Packager** | [electron-builder](https://www.electron.build/) |
+| **Document Conversion** | `mammoth`, `marked`, `md-to-pdf`, `turndown` |
+| **Image Processing** | `sharp` |
+| **OCR Engine** | [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) (Apache License 2.0) |
+| **i18n** | `react-i18next`, `i18next` |
 
-```bash
-# 1. 克隆仓库
-git clone https://github.com/fantuan9234/file-flow.git
-cd file-flow
+---
 
-# 2. 安装依赖
-pnpm install
+## 🚀 Installation
 
-# 3. 启动开发模式
-pnpm dev
-```
-
-### 环境要求
+### Prerequisites
 
 - Node.js >= 18
 - pnpm >= 8
 
+### Development
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/fantuan9234/file-flow.git
+cd file-flow
+
+# 2. Install dependencies
+pnpm install
+
+# 3. Start development mode
+pnpm dev
+```
+
 ---
 
-## 📖 使用说明
+## 📖 Getting Started
 
-### ✏️ 批量重命名
+### ✏️ Batch Rename
 
-1. 点击 **"选择文件夹并扫描"**，选择目标文件夹
-2. 在重命名规则区选择规则类型：
-   - **添加前缀**：输入前缀文字
-   - **添加后缀**：输入后缀文字
-   - **查找替换**：输入查找内容和替换内容
-   - **插入日期**：选择位置（前缀/后缀）和日期格式（如 `yyyyMMdd`）
-   - **添加序号**：设置起始值、步长、位数
-3. 点击 **"+ 添加规则"** 可组合多条规则，按顺序执行
-4. 预览表格实时显示重命名效果
-5. 确认无误后点击 **"执行重命名"**，支持 **"撤销"** 恢复
+1. Click **"Select Folder & Scan"** to choose a target folder
+2. In the rename rules section, select a rule type:
+   - **Add Prefix**: Enter prefix text
+   - **Add Suffix**: Enter suffix text
+   - **Find & Replace**: Enter search and replacement text
+   - **Insert Date**: Choose position (prefix/suffix) and date format (e.g., `yyyyMMdd`)
+   - **Add Sequence**: Set start value, step, and digit count
+3. Click **"+ Add Rule"** to compose multiple rules, executed in order
+4. Preview table shows real-time rename results
+5. Click **"Execute Rename"** when ready — full **undo** support available
 
-###  格式转换
+### 🔄 Format Conversion
 
-1. 选择 **源格式** 和 **目标格式**
-2. 点击按钮选择文件：
-   - **"选择单个文件"**：转换单个文件
-   - **"选择多个文件"**：批量转换多个文件
-3. 转换过程中显示进度提示
-4. 输出文件保存在源文件相同目录
+1. Select **Source Format** and **Target Format**
+2. Choose files:
+   - **"Select Single File"**: Convert one file
+   - **"Select Multiple Files"**: Batch convert multiple files
+3. Progress notifications during conversion
+4. Output files saved in the same directory as source files
 
-**支持的转换格式：**
+**Supported Conversions:**
 
-| 源格式 | 目标格式 |
-|--------|---------|
+| Source Format | Target Format |
+|---------------|---------------|
 | Word (.docx) | Markdown (.md) |
 | Markdown (.md) | HTML (.html) / PDF (.pdf) |
 | HTML (.html) | Markdown (.md) |
 | JPEG (.jpg) | PNG (.png) |
 | PNG (.png) | JPEG (.jpg) |
 
-### ⚡ 智能工作流
+### 📁 Smart Classification
 
-1. 切换到 **"智能工作流"** 标签页
-2. 点击 **"添加步骤"** 选择重命名规则或格式转换
-3. 通过 ↑↓ 按钮调整步骤顺序
-4. 可选：勾选 **"格式转换后保留原文件"**
-5. 点击 **"执行工作流"** 一键执行所有步骤
-6. 支持 **"撤销整个工作流"** 恢复所有文件
+1. Switch to the **"Classify"** tab
+2. Choose a classification rule:
+   - **By Extension**: Move files with specific extensions to a folder
+   - **By Keyword**: Move files containing keywords in their names
+   - **By Size**: Move files within a size range
+   - **By Date**: Move files older/newer than N days
+3. Set the target folder name
+4. Preview and execute — files auto-sorted into organized folders
 
-### 💾 模板管理
+### ⚡ Intelligent Workflow
 
-| 操作 | 说明 |
-|------|------|
-| **保存模板** | 将当前工作流步骤保存为 JSON 文件 |
-| **加载模板** | 从 JSON 文件加载之前保存的模板 |
-| **使用示例模板** | 一键加载内置模板：<br>•  照片归档：添加日期前缀 + 转 PNG<br>• 📄 文档备份：docx 转 md + 添加后缀 `_backup` |
+1. Switch to the **"Workflow"** tab
+2. Click **"Add Step"** to choose rename, conversion, or classification
+3. Use ↑↓ buttons to reorder steps
+4. Optional: Check **"Keep original files after conversion"**
+5. Click **"Execute Workflow"** to run all steps in order
+6. Full **"Undo Workflow"** support to restore all files
+
+### 💾 Template Management
+
+| Action | Description |
+|--------|-------------|
+| **Save Template** | Save current workflow steps as a JSON file |
+| **Load Template** | Load a previously saved template from JSON |
+| **Use Sample Template** | One-click load built-in templates:<br>• 📷 Photo Archive: date prefix + convert to PNG<br>• 📄 Document Backup: docx to md + `_backup` suffix |
 
 ---
 
-## 📦 打包发布
+## 📦 Build
 
 ```bash
-# Windows 安装包 (.exe)
+# Windows installer (.exe)
 pnpm build:win
 
 # macOS (.dmg)
@@ -191,46 +217,56 @@ pnpm build:mac
 pnpm build:linux
 ```
 
-打包完成后，安装包位于 `release/` 目录，可直接分发给他人安装使用。
+After building, installers are located in the `release/` directory, ready for distribution.
 
 ---
 
-## 📁 项目结构
+## 📁 Project Structure
 
 ```
 file-flow/
 ├── src/
-│   ├── main/          # Electron 主进程
-│   │   └── index.ts   # IPC 处理器、文件操作
-│   ├── preload/       # 预加载脚本
-│   │   └── index.ts   # API 暴露
-│   └── renderer/      # React 渲染进程
+│   ├── main/              # Electron main process
+│   │   └── index.ts       # IPC handlers, file operations
+│   ├── preload/           # Preload scripts
+│   │   └── index.ts       # API exposure
+│   └── renderer/          # React renderer process
 │       ├── src/
-│       │   ├── components/   # UI 组件
-│       │   ├── utils/        # 工具函数
-│       │   └── App.tsx       # 主应用组件
+│       │   ├── components/    # UI components
+│       │   ├── utils/         # Utility functions
+│       │   ├── i18n/          # Internationalization
+│       │   └── App.tsx        # Main app component
 │       └── index.html
-├── build/             # 构建资源（图标等）
-├── screenshots/       # 项目截图
-├── release/           # 打包输出
+├── build/                 # Build resources (icons, etc.)
+├── screenshots/           # Project screenshots
+├── release/               # Build output
 └── package.json
 ```
 
 ---
 
-## 📝 开源协议
+## 🙏 Acknowledgments
 
-本项目采用 [MIT License](LICENSE) 开源协议。
+- [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) - Provides OCR text recognition engine (Apache License 2.0)
+- [tesseract.js](https://github.com/naptha/tesseract.js) - Previously used as the early OCR engine (replaced)
 
 ---
 
-## 👤 作者
+## 📝 License
+
+This project is licensed under the [MIT License](LICENSE).
+
+> **Note**: This project uses PaddleOCR components which are licensed under the [Apache License 2.0](https://github.com/PaddlePaddle/PaddleOCR/blob/main/LICENSE).
+
+---
+
+## 👤 Author
 
 **fantuan9234**
 
 - GitHub: [@fantuan9234](https://github.com/fantuan9234)
-- 项目地址: https://github.com/fantuan9234/file-flow
+- Project: https://github.com/fantuan9234/file-flow
 
 ---
 
-<p align="center">如果这个项目对你有帮助，欢迎 ⭐ Star 支持一下！</p>
+<p align="center">If this project helps you, please consider giving it a ⭐ Star!</p>

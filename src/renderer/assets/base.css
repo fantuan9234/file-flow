@@ -65,3 +65,67 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+html.dark,
+html.dark body,
+html[data-theme='dark'],
+html[data-theme='dark'] body {
+  background-color: #000000 !important;
+}
+
+html.dark .ant-layout,
+html[data-theme='dark'] .ant-layout,
+html.dark .ant-layout-content,
+html[data-theme='dark'] .ant-layout-content {
+  background-color: #000000 !important;
+}
+
+html.dark div[style*="background"],
+html[data-theme='dark'] div[style*="background"] {
+  background-color: #000000 !important;
+}
+
+html.dark .ant-card,
+html[data-theme='dark'] .ant-card {
+  background-color: #141414 !important;
+}
+
+html.dark .ant-modal-content,
+html[data-theme='dark'] .ant-modal-content {
+  background-color: #1f1f1f !important;
+}
+
+html.dark .ant-modal-header,
+html[data-theme='dark'] .ant-modal-header {
+  background-color: #1f1f1f !important;
+}
+
+html.dark .ant-modal-body,
+html[data-theme='dark'] .ant-modal-body {
+  background-color: #1f1f1f !important;
+}
+
+html.dark .ant-modal-footer,
+html[data-theme='dark'] .ant-modal-footer {
+  background-color: #1f1f1f !important;
+}
+
+html.dark .ant-dropdown-menu,
+html[data-theme='dark'] .ant-dropdown-menu {
+  background-color: #1f1f1f !important;
+}
+
+html.dark .ant-tabs-nav,
+html[data-theme='dark'] .ant-tabs-nav {
+  background-color: #000000 !important;
+}
+
+html.dark .ant-switch,
+html[data-theme='dark'] .ant-switch {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+html.dark .ant-switch-checked,
+html[data-theme='dark'] .ant-switch-checked {
+  background-color: #4f46e5 !important;
+}
