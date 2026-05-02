@@ -422,6 +422,7 @@ function checkForNewVersion(): void {
 }
 
 function createWindow() {
+  app.setAppUserModelId('com.fantuan9234.fileflow');
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -455,6 +456,7 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  app.setAppUserModelId('com.fantuan9234.fileflow');
   console.log('[startup] app.whenReady() triggered');
   try {
     console.log('[startup] Creating main window...');

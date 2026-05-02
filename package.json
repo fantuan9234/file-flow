@@ -19,7 +19,7 @@
     "test:integration": "node tests/integration.test.mjs"
   },
   "build": {
-    "appId": "com.fileflow.app",
+    "appId": "com.fantuan9234.fileflow",
     "productName": "FileFlow",
     "directories": {
       "output": "release",
@@ -61,11 +61,12 @@
           ]
         }
       ],
-      "executableName": "file-flow",
-      "icon": "build/fileflow-icon.ico"
+      "executableName": "FileFlow",
+      "icon": "build/fileflow-icon.ico",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "nsis": {
-      "artifactName": "${name}-${version}-setup.${ext}",
+      "artifactName": "${productName}-Setup-${version}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
