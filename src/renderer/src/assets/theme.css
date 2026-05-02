@@ -1,13 +1,5 @@
 :root {
-  --ff-bg-primary: linear-gradient(135deg, #f5f7fa 0%, #e4e9f0 100%);
-  --ff-bg-primary-solid: #f5f7fa;
-  --ff-bg-card: rgba(255, 255, 255, 0.7);
-  --ff-bg-card-solid: #ffffff;
-  --ff-text-primary: #1a1a2e;
-  --ff-text-secondary: #6b7280;
-  --ff-text-tertiary: #9ca3af;
-  --ff-text-disabled: #d1d5db;
-  --ff-bg-page: #f8f9fa;
+  --ff-bg-page: #f5f7fa;
   --ff-bg-container: #ffffff;
   --ff-bg-hover: #f3f4f6;
   --ff-bg-selected: #eef2ff;
@@ -35,14 +27,6 @@
 }
 
 [data-theme='dark'] {
-  --ff-bg-primary: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  --ff-bg-primary-solid: #1a1a2e;
-  --ff-bg-card: rgba(45, 45, 45, 0.7);
-  --ff-bg-card-solid: #2d2d2d;
-  --ff-text-primary: rgba(255, 255, 255, 0.85);
-  --ff-text-secondary: rgba(255, 255, 255, 0.65);
-  --ff-text-tertiary: rgba(255, 255, 255, 0.45);
-  --ff-text-disabled: rgba(255, 255, 255, 0.3);
   --ff-bg-page: #0f172a;
   --ff-bg-container: #1e293b;
   --ff-bg-hover: #334155;
@@ -97,7 +81,6 @@ body {
 
 /* 所有卡片毛玻璃效果 */
 .ant-card {
-  background: var(--ff-bg-card) !important;
   backdrop-filter: var(--ff-glass-blur);
   -webkit-backdrop-filter: var(--ff-glass-blur);
   border-radius: var(--ff-radius) !important;
@@ -125,16 +108,7 @@ body {
 .ant-input-number,
 .ant-select-selector,
 .ant-picker {
-  background: rgba(255, 255, 255, 0.5) !important;
   border-radius: var(--ff-radius-sm) !important;
-}
-
-[data-theme='dark'] .ant-table,
-[data-theme='dark'] .ant-input,
-[data-theme='dark'] .ant-input-number,
-[data-theme='dark'] .ant-select-selector,
-[data-theme='dark'] .ant-picker {
-  background: rgba(0, 0, 0, 0.3) !important;
 }
 
 /* ===== 微交互动画 ===== */
@@ -353,14 +327,6 @@ body {
   border-radius: 0 2px 2px 0;
 }
 
-[data-theme='dark'] .ff-sidebar-menu.ant-menu .ant-menu-item:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-}
-
-[data-theme='dark'] .ff-sidebar-menu.ant-menu .ant-menu-item-selected {
-  background: rgba(79, 70, 229, 0.15) !important;
-}
-
 /* ===== 排版系统 ===== */
 .ff-title-lg {
   font-size: 20px;
@@ -417,7 +383,6 @@ body {
 /* ===== 状态栏 ===== */
 .ff-status-bar {
   height: 32px;
-  background: var(--ff-bg-card);
   border-top: 1px solid var(--ff-color-border);
   display: flex;
   align-items: center;
@@ -428,6 +393,47 @@ body {
   -webkit-backdrop-filter: var(--ff-glass-blur);
 }
 
-[data-theme='dark'] .ff-status-bar {
-  background: rgba(30, 30, 30, 0.7);
+.ocr-preview-fallback-icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  background: var(--ant-color-fill-quaternary);
+  border-radius: 4px;
+}
+
+.ocr-preview-fallback-icon svg {
+  fill: var(--ant-color-text-tertiary);
+}
+
+/* ===== 全局过渡动画 ===== */
+html {
+  transition: color 0.3s ease, background-color 0.3s ease;
+}
+
+body,
+.ant-layout,
+.ant-card,
+.ant-btn,
+.ant-input,
+.ant-select,
+.ant-table,
+.ant-modal-content,
+.ant-drawer-content,
+.ant-tabs,
+.ant-menu,
+.ant-typography,
+.ant-space,
+.ant-tag,
+.ant-collapse,
+.ant-form-item,
+.ant-radio,
+.ant-checkbox,
+.ant-switch,
+.ant-slider,
+.ant-progress,
+.ant-message,
+.ant-notification {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
 }

@@ -1,10 +1,23 @@
 // src/renderer/src/utils/renameEngine.ts
 
-export type RenameRuleType = 'addPrefix' | 'addSuffix' | 'findReplace' | 'insertDate' | 'sequence'
+export type RenameRuleType = 'addPrefix' | 'addSuffix' | 'findReplace' | 'insertDate' | 'sequence' | 'regexReplace'
 
 export interface RenameRule {
   type: RenameRuleType
-  params: {
+  enabled?: boolean
+  findText?: string
+  replaceText?: string
+  useRegex?: boolean
+  regexFlags?: string
+  prefix?: string
+  suffix?: string
+  dateFormat?: string
+  insertPosition?: string
+  sequenceStart?: number
+  sequenceStep?: number
+  sequencePadding?: number
+  sequencePosition?: string
+  params?: {
     prefix?: string
     suffix?: string
     search?: string
@@ -25,7 +38,6 @@ function formatDate(date: Date, format: string): string {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   
-  // 支持的格式标记
   const tokens: Record<string, string> = {
     'yyyy': String(year),
     'yy': String(year).slice(-2),
@@ -35,7 +47,6 @@ function formatDate(date: Date, format: string): string {
     'd': String(parseInt(day, 10))
   }
   
-  // 替换格式标记
   return format.replace(/yyyy|yy|MM|M|dd|d/g, match => tokens[match] || match)
 }
 
@@ -53,29 +64,39 @@ function generateSequenceNumber(index: number, start: number, step: number, digi
 export function applyRenameRule(nameWithoutExt: string, rule: RenameRule, index: number = 0): string {
   let result = nameWithoutExt
   
-  if (rule.type === 'addPrefix' && rule.params.prefix) {
-    result = rule.params.prefix + result
-  } else if (rule.type === 'addSuffix' && rule.params.suffix) {
-    result = result + rule.params.suffix
-  } else if (rule.type === 'findReplace' && rule.params.search) {
-    // 全局替换所有匹配的文本
-    result = result.split(rule.params.search).join(rule.params.replace || '')
-  } else if (rule.type === 'insertDate' && rule.params.format) {
-    // 生成当天日期
-    const dateStr = formatDate(new Date(), rule.params.format)
-    const position = rule.params.position || 'prefix'
-    
-    if (position === 'suffix') {
-      result = result + dateStr
-    } else {
-      result = dateStr + result
+  if (rule.type === 'addPrefix') {
+    const prefix = rule.prefix || rule.params?.prefix
+    if (prefix) {
+      result = prefix + result
+    }
+  } else if (rule.type === 'addSuffix') {
+    const suffix = rule.suffix || rule.params?.suffix
+    if (suffix) {
+      result = result + suffix
+    }
+  } else if (rule.type === 'findReplace') {
+    const search = rule.findText || rule.params?.search
+    if (search) {
+      const replace = rule.replaceText || rule.params?.replace || ''
+      result = result.split(search).join(replace)
+    }
+  } else if (rule.type === 'insertDate') {
+    const format = rule.dateFormat || rule.params?.format
+    if (format) {
+      const dateStr = formatDate(new Date(), format)
+      const position = rule.insertPosition || rule.params?.position || 'prefix'
+      
+      if (position === 'suffix') {
+        result = result + dateStr
+      } else {
+        result = dateStr + result
+      }
     }
   } else if (rule.type === 'sequence') {
-    // 生成序号
-    const start = rule.params.start || 1
-    const step = rule.params.step || 1
-    const digits = rule.params.digits || 3
-    const position = rule.params.position || 'prefix'
+    const start = rule.sequenceStart || rule.params?.start || 1
+    const step = rule.sequenceStep || rule.params?.step || 1
+    const digits = rule.sequencePadding || rule.params?.digits || 3
+    const position = rule.sequencePosition || rule.params?.position || 'prefix'
     
     const sequenceStr = generateSequenceNumber(index, start, step, digits)
     
@@ -96,7 +117,6 @@ export function applyRenameRule(nameWithoutExt: string, rule: RenameRule, index:
 export function applyRuleChain(nameWithoutExt: string, rules: RenameRule[], index: number = 0): string {
   let result = nameWithoutExt
   
-  // 顺序应用每条规则
   for (const rule of rules) {
     result = applyRenameRule(result, rule, index)
   }
@@ -114,7 +134,6 @@ export function generateNewNames(
   files: { path: string; name: string }[],
   rules: RenameRule | RenameRule[]
 ): { oldPath: string; oldName: string; newName: string; newPath: string }[] {
-  // 兼容单个规则的情况，转换为数组
   const ruleArray = Array.isArray(rules) ? rules : [rules]
   
   return files.map((file, index) => {
@@ -122,7 +141,6 @@ export function generateNewNames(
     const nameWithoutExt = lastDot >= 0 ? file.name.substring(0, lastDot) : file.name
     const ext = lastDot >= 0 ? file.name.substring(lastDot) : ''
     
-    // 应用规则链到文件名（不含扩展名），传入索引用于序号生成
     const newNameWithoutExt = applyRuleChain(nameWithoutExt, ruleArray, index)
     const newName = newNameWithoutExt + ext
     

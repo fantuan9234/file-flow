@@ -49,6 +49,7 @@ declare global {
       apiKeySave: (key: string) => Promise<{ success: boolean; error?: string }>;
       extractText: (filePath: string, languages: string) => Promise<{ success: boolean; text?: string; confidence?: number; error?: string }>;
       paddleExtractText: (filePath: string) => Promise<{ success: boolean; text?: string; confidence?: number; error?: string }>;
+      hybridExtractText: (filePath: string, languages: string) => Promise<{ success: boolean; text?: string; confidence?: number; paddleText?: string; paddleConfidence?: number; tesseractText?: string; tesseractConfidence?: number; consensus?: string; error?: string }>;
       getPaddleOCRStatus: () => Promise<{ status: 'starting' | 'running' | 'stopped' | 'failed'; running: boolean; errorLogPath?: string }>;
       openPaddleOCRLog: () => Promise<{ success: boolean; error?: string }>;
       onPaddleOCRStatusChange: (callback: (data: { status: string; errorLogPath?: string }) => void) => () => void;
@@ -56,6 +57,8 @@ declare global {
       sendCreateFolderResponse: (selectedDirs: string[]) => void;
       testAiConnection: (endpoint: string, provider: 'ollama' | 'lmstudio') => Promise<{ success: boolean; models?: string[]; error?: string }>;
       aiClassify: (text: string) => Promise<{ success: boolean; category?: string; rawResponse?: string; error?: string }>;
+      searchFiles: (params: { files: any[]; query: string; provider: 'ollama' | 'openai'; apiKey: string; model: string; endpoint: string }) => Promise<{ success: boolean; results?: { path: string; name: string; score: number; reason: string }[]; error?: string }>;
+      describeImage: (params: { imagePath: string; provider: 'ollama' | 'openai'; apiKey: string; model: string; endpoint: string }) => Promise<{ success: boolean; description?: string; error?: string }>;
       startLanServer: (uploadDir: string) => Promise<{ success: boolean; url?: string; qrCode?: string; port?: number; ip?: string; error?: string }>;
       stopLanServer: () => Promise<{ success: boolean; error?: string }>;
       onLanServerStarted: (callback: (data: { url: string; qrCode: string; port: number; ip: string }) => void) => () => void;

@@ -1,11 +1,22 @@
 import { useState } from 'react'
 import { Card, Select, Input, Button, Space, Typography, message, Switch, InputNumber, Radio, theme } from 'antd'
 import { PlusOutlined, DeleteOutlined, DragOutlined } from '@ant-design/icons'
-import type { RenameOperation, FileInfo } from '../electron'
 import { generateNewNames, type RenameRule } from '../utils/renameEngine'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 const { TextArea } = Input
+
+interface FileInfo {
+  path: string
+  name: string
+  size: number
+  mtime: string | Date
+}
+
+interface RenameOperation {
+  oldPath: string
+  newPath: string
+}
 
 interface RuleConfigProps {
   onApplyRules: (operations: RenameOperation[]) => void

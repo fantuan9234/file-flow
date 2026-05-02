@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 const { Title, Text, Paragraph } = Typography;
 
 interface LanShareProps {
-  darkMode: boolean;
+  darkMode?: boolean;
 }
 
 interface Peer {

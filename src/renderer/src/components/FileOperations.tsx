@@ -1,5 +1,21 @@
 import { useState } from 'react'
-import type { FileInfo, RenameOperation, RenameResult, RenameHistory } from '../electron'
+
+interface FileInfo {
+  path: string
+  name: string
+  size: number
+  mtime: Date
+}
+
+interface RenameOperation {
+  oldPath: string
+  newPath: string
+}
+
+interface RenameResult {
+  success: boolean
+  message: string
+}
 
 interface FileScannerProps {
   onFilesScanned?: (files: FileInfo[]) => void
@@ -21,9 +37,17 @@ export function FileScanner({ onFilesScanned }: FileScannerProps) {
     setError(null)
 
     try {
-      const scannedFiles = await window.api.scanFiles(dirPath)
-      setFiles(scannedFiles)
-      onFilesScanned?.(scannedFiles)
+      const result = await window.fileAPI.scanFiles(dirPath)
+      if (result.success && result.data) {
+        const scannedFiles = result.data.map(f => ({
+          ...f,
+          mtime: new Date(f.mtime)
+        }))
+        setFiles(scannedFiles)
+        onFilesScanned?.(scannedFiles)
+      } else {
+        setError(result.error || 'Failed to scan directory')
+      }
     } catch (err) {
       setError(`Failed to scan directory: ${(err as Error).message}`)
     } finally {
@@ -115,8 +139,8 @@ export function RenameManager({ lastOperations, onOperationsChange }: RenameMana
 
     setLoading(true)
     try {
-      const renameResults = await window.api.renameFiles(validOperations)
-      setResults(renameResults)
+      const renameResults = await window.fileAPI.renameFiles(validOperations)
+      setResults([{ success: renameResults.success, message: renameResults.success ? 'Rename successful' : 'Rename failed' }])
       onOperationsChange?.(validOperations)
     } catch (err) {
       setResults([
@@ -136,14 +160,10 @@ export function RenameManager({ lastOperations, onOperationsChange }: RenameMana
     }
 
     setLoading(true)
-    const history: RenameHistory = {
-      operations: lastOperations,
-      timestamp: Date.now()
-    }
 
     try {
-      const undoResults = await window.api.undoRename(history)
-      setResults(undoResults)
+      const undoResults = await window.fileAPI.undoRename()
+      setResults([{ success: undoResults.success, message: undoResults.success ? 'Undo successful' : 'Undo failed' }])
       onOperationsChange?.([])
     } catch (err) {
       setResults([

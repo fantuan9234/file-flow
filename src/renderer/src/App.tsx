@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Button, Table, Input, Card, message, Space, Select, InputNumber, ConfigProvider, theme, Modal, Switch, Radio, Slider, Collapse, Checkbox, Progress, Tag, Typography, Tooltip, Breadcrumb } from 'antd';
-import { DeleteOutlined, PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, SyncOutlined, ScanOutlined, FolderOpenOutlined, FileTextOutlined, ExportOutlined, KeyOutlined, CloudOutlined, SettingOutlined, SaveOutlined, EditOutlined, SwapOutlined, FolderOutlined, ThunderboltOutlined, CopyOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import { Button, Table, Input, Card, message, Space, Select, InputNumber, ConfigProvider, theme, Modal, Switch, Radio, Slider, Collapse, Checkbox, Progress, Tag, Typography, Tooltip, Breadcrumb, Spin, Descriptions, Row, Col, Alert } from 'antd';
+import { DeleteOutlined, PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, SyncOutlined, ScanOutlined, FolderOpenOutlined, FileTextOutlined, ExportOutlined, KeyOutlined, CloudOutlined, SettingOutlined, SaveOutlined, EditOutlined, SwapOutlined, FolderOutlined, ThunderboltOutlined, CopyOutlined, ExperimentOutlined, EyeOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { generateNewNames, RenameRule, RenameRuleType } from './utils/renameEngine';
 import { classifyFiles, ClassifyRule, ClassifyResult } from './utils/classifyEngine';
@@ -9,9 +9,10 @@ import CustomTitleBar from './components/CustomTitleBar';
 import Sidebar from './components/Sidebar';
 import StatusBar from './components/StatusBar';
 import SettingsDrawer from './components/SettingsDrawer';
-import LanShare from './components/LanShare';
 import './i18n';
 import './assets/theme.css';
+
+const LanShare = lazy(() => import('./components/LanShare'));
 
 interface FileInfo {
   path: string;
@@ -235,6 +236,8 @@ const createRule = (type: RenameRuleType): RenameRule => {
       return { type: 'insertDate', params: { position: DEFAULT_PARAMS.datePosition, format: DEFAULT_PARAMS.dateFormat } };
     case 'sequence':
       return { type: 'sequence', params: { start: DEFAULT_PARAMS.seqStart, step: DEFAULT_PARAMS.seqStep, digits: DEFAULT_PARAMS.seqDigits, position: DEFAULT_PARAMS.seqPosition } };
+    case 'regexReplace':
+      return { type: 'regexReplace', params: { search: '', replace: '' } };
   }
 };
 
@@ -257,59 +260,20 @@ function App() {
 
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('fileflow-dark-mode');
-    const isDark = saved === 'true';
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      document.documentElement.setAttribute('data-theme', 'dark');
-      document.body.style.backgroundColor = '#000000';
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.setAttribute('data-theme', 'light');
-      document.body.style.backgroundColor = '#f5f5f5';
-    }
-    return isDark;
+    return saved === 'true';
   });
 
   useEffect(() => {
+    localStorage.setItem('fileflow-dark-mode', String(darkMode));
     if (darkMode) {
+      document.documentElement.classList.remove('light');
       document.documentElement.classList.add('dark');
       document.documentElement.setAttribute('data-theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      document.documentElement.classList.add('light');
       document.documentElement.setAttribute('data-theme', 'light');
     }
-    
-    // 使用 requestAnimationFrame 确保在下一帧应用样式
-    requestAnimationFrame(() => {
-      const bgColor = darkMode ? '#000000' : '#f5f5f5';
-      const cardBg = darkMode ? '#141414' : '#ffffff';
-      const modalBg = darkMode ? '#1f1f1f' : '#ffffff';
-      
-      // 设置根元素背景色
-      document.documentElement.style.backgroundColor = bgColor;
-      document.body.style.backgroundColor = bgColor;
-      
-      // 设置所有关键 Ant Design 元素的背景色
-      const setBg = (selector: string, bg: string) => {
-        document.querySelectorAll(selector).forEach(el => {
-          if (el instanceof HTMLElement) {
-            el.style.backgroundColor = bg;
-          }
-        });
-      };
-      
-      setBg('.ant-layout, .ant-layout-content, .ant-layout-sider', bgColor);
-      setBg('.ant-card', cardBg);
-      setBg('.ant-card-head', cardBg);
-      setBg('.ant-card-body', cardBg);
-      setBg('.ant-modal-content, .ant-modal-header, .ant-modal-body, .ant-modal-footer', modalBg);
-      setBg('.ant-dropdown-menu', modalBg);
-      setBg('.ant-tabs-nav, .ant-tabs-nav-list', bgColor);
-      setBg('.ant-tabs-content-holder', bgColor);
-      setBg('.ant-table', 'transparent');
-      setBg('.ant-table-container', 'transparent');
-      setBg('.ant-table-cell', 'transparent');
-    });
   }, [darkMode]);
 
   const [lang, setLang] = useState(() => {
@@ -328,19 +292,7 @@ function App() {
 
   const handleToggleDarkMode = (checked: boolean) => {
     setDarkMode(checked);
-    // 使用 requestAnimationFrame 确保 DOM 更新后再执行非关键任务
-    requestAnimationFrame(() => {
-      localStorage.setItem('fileflow-dark-mode', String(checked));
-      if (checked) {
-        document.documentElement.classList.add('dark');
-        document.documentElement.setAttribute('data-theme', 'dark');
-        document.body.style.backgroundColor = '#000000';
-      } else {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.setAttribute('data-theme', 'light');
-        document.body.style.backgroundColor = '#f5f5f5';
-      }
-    });
+    localStorage.setItem('fileflow-dark-mode', String(checked));
   };
 
   const handleToggleLang = (checked: boolean) => {
@@ -372,6 +324,11 @@ function App() {
   const [ocrFiles, setOcrFiles] = useState<{ path: string; name: string; text: string; originalText: string; confidence: number; edited: boolean }[]>([]);
   const [ocrMultiExtracting, setOcrMultiExtracting] = useState(false);
   const [ocrSaving, setOcrSaving] = useState(false);
+  const [useHybridOCR, setUseHybridOCR] = useState(() => localStorage.getItem('fileflow-hybrid-ocr') === 'true');
+  const [hybridResult, setHybridResult] = useState<{ paddleText: string; paddleConfidence: number; tesseractText: string; tesseractConfidence: number; consensus: string } | null>(null);
+  const [imageDescriptions, setImageDescriptions] = useState<Record<string, string>>({});
+  const [describingImages, setDescribingImages] = useState<Set<string>>(new Set());
+  const [showAiDescription, _setShowAiDescription] = useState(() => localStorage.getItem('fileflow-show-ai-desc') === 'true');
 
   const [classifyMode, setClassifyMode] = useState<'fast' | 'basic' | 'enhanced' | 'cloud' | 'hybrid'>('basic');
 
@@ -390,6 +347,75 @@ function App() {
   const [activeTab, setActiveTab] = useState('rename');
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{ path: string; name: string; score: number; reason: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_searchOpen, _setSearchOpen] = useState(false);
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim() || files.length === 0) return;
+    setSearching(true);
+    try {
+      const aiEndpoint = localStorage.getItem('fileflow-ai-endpoint') || 'http://localhost:11434';
+      const aiModel = localStorage.getItem('fileflow-ai-model') || 'qwen2.5:1.5b';
+      const aiProvider = (localStorage.getItem('fileflow-ai-provider') || 'ollama') as 'ollama' | 'openai';
+      const aiApiKey = localStorage.getItem('fileflow-ai-api-key') || '';
+
+      const res = await window.fileAPI.searchFiles({
+        files: files.map(f => ({ path: f.path, name: f.name, size: f.size, mtime: f.mtime })),
+        query: searchQuery,
+        provider: aiProvider,
+        apiKey: aiApiKey,
+        model: aiModel,
+        endpoint: aiEndpoint,
+      });
+
+      if (res.success && res.results) {
+        setSearchResults(res.results);
+      } else {
+        message.error(res.error || t('search.failed'));
+      }
+    } catch (err: any) {
+      message.error(err?.message || t('search.failed'));
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleDescribeImage = async (filePath: string) => {
+    if (imageDescriptions[filePath]) return;
+    setDescribingImages(prev => new Set(prev).add(filePath));
+    try {
+      const aiEndpoint = localStorage.getItem('fileflow-ai-endpoint') || 'http://localhost:11434';
+      const aiModel = localStorage.getItem('fileflow-ai-model') || 'llava:7b';
+      const aiProvider = (localStorage.getItem('fileflow-ai-provider') || 'ollama') as 'ollama' | 'openai';
+      const aiApiKey = localStorage.getItem('fileflow-ai-api-key') || '';
+
+      const res = await window.fileAPI.describeImage({
+        imagePath: filePath,
+        provider: aiProvider,
+        apiKey: aiApiKey,
+        model: aiModel,
+        endpoint: aiEndpoint,
+      });
+
+      if (res.success && res.description) {
+        setImageDescriptions(prev => ({ ...prev, [filePath]: res.description! }));
+      } else {
+        message.error(res.error || t('fileList.aiDescFailed'));
+      }
+    } catch (err: any) {
+      message.error(err?.message || t('fileList.aiDescFailed'));
+    } finally {
+      setDescribingImages(prev => {
+        const next = new Set(prev);
+        next.delete(filePath);
+        return next;
+      });
+    }
+  };
 
   const [apiProvider, setApiProvider] = useState<'openai' | 'deepseek'>('openai');
   const [apiKey, setApiKey] = useState('');
@@ -609,7 +635,7 @@ function App() {
       message.warning(t('ocr.selectFileFirst'));
       return;
     }
-    if (paddleOCRStatus !== 'running') {
+    if (paddleOCRStatus !== 'running' && !useHybridOCR) {
       message.warning(t('ocr.serviceUnavailableHint'));
       return;
     }
@@ -617,28 +643,55 @@ function App() {
     setOcrProgress(0);
     setOcrText('');
     setOcrStatus('');
+    setHybridResult(null);
     try {
-      console.log('[PaddleOCR] Starting extraction for:', ocrSelectedFile);
+      if (useHybridOCR) {
+        console.log('[HybridOCR] Starting hybrid extraction for:', ocrSelectedFile);
+        const result = await window.fileAPI.hybridExtractText(ocrSelectedFile, 'chi_sim+eng');
 
-      const result = await window.fileAPI.paddleExtractText(ocrSelectedFile);
+        if (!result.success) {
+          throw new Error(result.error || 'Hybrid OCR failed');
+        }
 
-      if (!result.success) {
-        throw new Error(result.error || 'OCR failed');
-      }
-
-      if (!result.text) {
-        message.warning(t('ocr.noTextDetected'));
-        setOcrText('');
-        setOcrConfidence(0);
-      } else {
-        setOcrText(result.text);
+        setOcrText(result.text || '');
         setOcrConfidence(result.confidence || 0);
-        message.success(t('ocr.extractSuccess'));
-        console.log('[PaddleOCR] Extracted', result.text.length, 'characters with', (result.confidence || 0).toFixed(1), '% confidence');
+        setHybridResult({
+          paddleText: result.paddleText || '',
+          paddleConfidence: result.paddleConfidence || 0,
+          tesseractText: result.tesseractText || '',
+          tesseractConfidence: result.tesseractConfidence || 0,
+          consensus: result.consensus || 'low',
+        });
+
+        if (!result.text) {
+          message.warning(t('ocr.noTextDetected'));
+        } else {
+          const consensusLabel = result.consensus === 'high' ? t('ocr.consensusHigh') : result.consensus === 'low' ? t('ocr.consensusLow') : t('ocr.singleEngine');
+          message.success(`${t('ocr.extractSuccess')} (${consensusLabel})`);
+          console.log('[HybridOCR] Extracted', result.text.length, 'chars, confidence:', (result.confidence || 0).toFixed(1), 'consensus:', result.consensus);
+        }
+      } else {
+        console.log('[PaddleOCR] Starting extraction for:', ocrSelectedFile);
+        const result = await window.fileAPI.paddleExtractText(ocrSelectedFile);
+
+        if (!result.success) {
+          throw new Error(result.error || 'OCR failed');
+        }
+
+        if (!result.text) {
+          message.warning(t('ocr.noTextDetected'));
+          setOcrText('');
+          setOcrConfidence(0);
+        } else {
+          setOcrText(result.text);
+          setOcrConfidence(result.confidence || 0);
+          message.success(t('ocr.extractSuccess'));
+          console.log('[PaddleOCR] Extracted', result.text.length, 'characters with', (result.confidence || 0).toFixed(1), '% confidence');
+        }
       }
     } catch (err) {
       const errorMsg = String(err);
-      console.error('[PaddleOCR] Extraction failed:', errorMsg);
+      console.error('[OCR] Extraction failed:', errorMsg);
       message.error(t('ocr.extractFailed', { error: errorMsg }));
     } finally {
       setOcrExtracting(false);
@@ -1175,11 +1228,11 @@ function App() {
       
       for (let i = 0; i < ruleChain.length; i++) {
         const rule = ruleChain[i];
-        if (rule.type === 'findReplace' && !rule.params.search) {
+        if (rule.type === 'findReplace' && !rule.params?.search) {
           setPreviewList([]);
           return;
         }
-        if (rule.type === 'insertDate' && !rule.params.format) {
+        if (rule.type === 'insertDate' && !rule.params?.format) {
           setPreviewList([]);
           return;
         }
@@ -1318,11 +1371,11 @@ function App() {
     // 验证规则参数
     for (let i = 0; i < ruleChain.length; i++) {
       const rule = ruleChain[i];
-      if (rule.type === 'findReplace' && !rule.params.search) {
+      if (rule.type === 'findReplace' && !rule.params?.search) {
         message.warning(t('rename.enterSearchText', { index: i + 1 }));
         return;
       }
-      if (rule.type === 'insertDate' && !rule.params.format) {
+      if (rule.type === 'insertDate' && !rule.params?.format) {
         message.warning(t('rename.enterDateFormat', { index: i + 1 }));
         return;
       }
@@ -1482,11 +1535,11 @@ function App() {
     }
   };
 
-  const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
+  const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.tiff', '.tif', '.ico']);
 
   const isImageFile = (fileName: string): boolean => {
     const ext = '.' + fileName.split('.').pop()?.toLowerCase();
-    return IMAGE_EXTENSIONS.includes(ext);
+    return IMAGE_EXTENSIONS.has(ext);
   };
 
   const getImageSrc = (filePath: string): string => {
@@ -1515,9 +1568,7 @@ function App() {
               const parent = target.parentElement;
               if (parent) {
                 const icon = document.createElement('span');
-                const bgColor = darkMode ? '#262626' : '#f5f5f5';
-                const iconColor = darkMode ? 'rgba(255, 255, 255, 0.45)' : '#999';
-                icon.innerHTML = `<span style="display:inline-flex;width:40px;height:40px;align-items:center;justify-content:center;background:${bgColor};border-radius:4px;"><svg viewBox="64 64 896 896" focusable="false" data-icon="file-image" width="24" height="24" fill="${iconColor}" aria-hidden="true"><path d="M854.6 288.6L639.4 73.4c-6-6-14.1-9.4-22.6-9.4H192c-17.7 0-32 14.3-32 32v832c0 17.7 14.3 32 32 32h640c17.7 0 32-14.3 32-32V311.3c0-8.5-3.4-16.7-9.4-22.7zM790.2 326H602V137.8L800.2 336c1.3 1.3 2.1 3.1 2.4 5l-12.4-15zm-122.8 376.3c-3.5 11.2-15.5 17.4-26.7 13.9l-120.6-37.6-37.6 120.6c-3.5 11.2-15.5 17.4-26.7 13.9-4.8-1.5-8.8-4.8-11.2-9.2L300.2 516.5c-5.5-10-1.9-22.6 8.1-28.1 3.2-1.8 6.8-2.7 10.4-2.7l156.9 49 49-156.9c3.5-11.2 15.5-17.4 26.7-13.9 4.8 1.5 8.8 4.8 11.2 9.2l144.4 287.5c2.3 4.5 2.8 9.6 1.3 14.4z"></path></svg></span>`;
+                icon.innerHTML = `<span class="ocr-preview-fallback-icon"></span>`;
                 const firstChild = icon.firstChild as Node | null;
                 if (firstChild) {
                   parent.insertBefore(firstChild, target.nextSibling);
@@ -1550,6 +1601,54 @@ function App() {
         return (size / (1024 * 1024)).toFixed(1) + ' MB';
       },
     },
+    ...(showAiDescription ? [{
+      title: t('fileList.aiDescription'),
+      key: 'aiDescription',
+      width: 300,
+      render: (_: any, record: FileInfo) => {
+        const ext = window.fileAPI.path.extname(record.name).toLowerCase();
+        if (!IMAGE_EXTENSIONS.has(ext)) return null;
+        
+        const desc = imageDescriptions[record.path];
+        const isDescribing = describingImages.has(record.path);
+        
+        if (desc) {
+          return (
+            <Tooltip title={desc}>
+              <Typography.Text
+                style={{
+                  fontSize: 12,
+                  color: token.colorTextSecondary,
+                  maxWidth: 280,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  display: 'block',
+                }}
+              >
+                {desc}
+              </Typography.Text>
+            </Tooltip>
+          );
+        }
+        
+        if (isDescribing) {
+          return <Spin size="small" />;
+        }
+        
+        return (
+          <Button
+            size="small"
+            type="link"
+            icon={<EyeOutlined />}
+            onClick={() => handleDescribeImage(record.path)}
+            style={{ padding: 0 }}
+          >
+            {t('fileList.generateAiDesc')}
+          </Button>
+        );
+      },
+    }] : []),
   ];
 
   const previewColumns = [
@@ -1559,12 +1658,13 @@ function App() {
 
   // 渲染单条规则的参数输入区域
   const renderRuleParams = (rule: RenameRule, index: number) => {
+    const params = rule.params || {};
     switch (rule.type) {
       case 'addPrefix':
         return (
           <Input
             placeholder={t('rename.prefixPlaceholder')}
-            value={rule.params.prefix || ''}
+            value={params.prefix || ''}
             onChange={(e) => handleUpdateRule(index, { type: rule.type, params: { prefix: e.target.value } })}
             style={{ width: 300 }}
             addonBefore={t('rename.prefix') + '：'}
@@ -1575,7 +1675,7 @@ function App() {
         return (
           <Input
             placeholder={t('rename.suffixPlaceholder')}
-            value={rule.params.suffix || ''}
+            value={params.suffix || ''}
             onChange={(e) => handleUpdateRule(index, { type: rule.type, params: { suffix: e.target.value } })}
             style={{ width: 300 }}
             addonBefore={t('rename.suffix') + '：'}
@@ -1588,8 +1688,8 @@ function App() {
             <Space>
               <Input
                 placeholder={t('rename.searchPlaceholder')}
-                value={rule.params.search || ''}
-                onChange={(e) => handleUpdateRule(index, { type: rule.type, params: { search: e.target.value, replace: rule.params.replace } })}
+                value={params.search || ''}
+                onChange={(e) => handleUpdateRule(index, { type: rule.type, params: { search: e.target.value, replace: params.replace } })}
                 style={{ width: 300 }}
                 addonBefore={t('rename.search') + '：'}
               />
@@ -1597,8 +1697,8 @@ function App() {
             <Space>
               <Input
                 placeholder={t('rename.replacePlaceholder')}
-                value={rule.params.replace || ''}
-                onChange={(e) => handleUpdateRule(index, { type: rule.type, params: { search: rule.params.search, replace: e.target.value } })}
+                value={params.replace || ''}
+                onChange={(e) => handleUpdateRule(index, { type: rule.type, params: { search: params.search, replace: e.target.value } })}
                 style={{ width: 300 }}
                 addonBefore={t('rename.replaceWith') + '：'}
               />
@@ -1612,8 +1712,8 @@ function App() {
             <Space>
               <span style={{ minWidth: '80px' }}>{t('rename.position')}：</span>
               <Select
-                value={rule.params.position || 'prefix'}
-                onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...rule.params, position: value } })}
+                value={params.position || 'prefix'}
+                onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...params, position: value } })}
                 options={[
                   { value: 'prefix', label: t('rename.datePositionPrefix') },
                   { value: 'suffix', label: t('rename.datePositionSuffix') }
@@ -1625,8 +1725,8 @@ function App() {
               <span style={{ minWidth: '80px' }}>{t('rename.format')}：</span>
               <Input
                 placeholder={t('rename.format')}
-                value={rule.params.format || ''}
-                onChange={(e) => handleUpdateRule(index, { type: rule.type, params: { ...rule.params, format: e.target.value } })}
+                value={params.format || ''}
+                onChange={(e) => handleUpdateRule(index, { type: rule.type, params: { ...params, format: e.target.value } })}
                 style={{ width: 300 }}
                 addonBefore={t('rename.format') + '：'}
               />
@@ -1644,8 +1744,8 @@ function App() {
               <Space>
                 <span style={{ minWidth: '80px' }}>{t('rename.startNumber')}：</span>
                 <InputNumber
-                  value={rule.params.start || 1}
-                  onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...rule.params, start: value || 1 } })}
+                  value={params.start || 1}
+                  onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...params, start: value || 1 } })}
                   style={{ width: 100 }}
                   min={0}
                 />
@@ -1653,8 +1753,8 @@ function App() {
               <Space>
                 <span style={{ minWidth: '50px' }}>{t('rename.step')}：</span>
                 <InputNumber
-                  value={rule.params.step || 1}
-                  onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...rule.params, step: value || 1 } })}
+                  value={params.step || 1}
+                  onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...params, step: value || 1 } })}
                   style={{ width: 80 }}
                   min={1}
                 />
@@ -1662,8 +1762,8 @@ function App() {
               <Space>
                 <span style={{ minWidth: '50px' }}>{t('rename.digits')}：</span>
                 <InputNumber
-                  value={rule.params.digits || 3}
-                  onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...rule.params, digits: value || 3 } })}
+                  value={params.digits || 3}
+                  onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...params, digits: value || 3 } })}
                   style={{ width: 80 }}
                   min={1}
                   max={10}
@@ -1672,8 +1772,8 @@ function App() {
               <Space>
                 <span style={{ minWidth: '50px' }}>{t('rename.position')}：</span>
                 <Select
-                  value={rule.params.position || 'prefix'}
-                  onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...rule.params, position: value } })}
+                  value={params.position || 'prefix'}
+                  onChange={(value) => handleUpdateRule(index, { type: rule.type, params: { ...params, position: value } })}
                   options={[
                     { value: 'prefix', label: t('rename.positionPrefix') },
                     { value: 'suffix', label: t('rename.positionSuffix') }
@@ -1751,8 +1851,11 @@ function App() {
 
   const renderContent = () => {
     if (activeTab === 'lan') {
-      const tabItem = tabItems.find(item => item.key === 'lan');
-      return tabItem?.children || null;
+      return (
+        <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spin size="large" /></div>}>
+          <LanShare />
+        </Suspense>
+      );
     }
 
     if (files.length === 0) {
@@ -2570,6 +2673,17 @@ function App() {
                   </Button>
                 </>
               )}
+              <div style={{ marginLeft: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Switch
+                  size="small"
+                  checked={useHybridOCR}
+                  onChange={(checked) => {
+                    setUseHybridOCR(checked);
+                    localStorage.setItem('fileflow-hybrid-ocr', String(checked));
+                  }}
+                />
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>{t('ocr.hybridMode')}</Typography.Text>
+              </div>
             </Space>
           </Card>
 
@@ -2579,7 +2693,7 @@ function App() {
                 <Button icon={<FolderOpenOutlined />} onClick={handleSelectOCRFile}>
                   {t('ocr.selectFile')}
                 </Button>
-                <Button type="primary" icon={<FileTextOutlined />} onClick={handleExtractText} loading={ocrExtracting} disabled={!ocrSelectedFile || paddleOCRStatus !== 'running'}>
+                <Button type="primary" icon={<FileTextOutlined />} onClick={handleExtractText} loading={ocrExtracting} disabled={!ocrSelectedFile || (paddleOCRStatus !== 'running' && !useHybridOCR)}>
                   {t('ocr.extract')}
                 </Button>
                 <Button icon={<ExportOutlined />} onClick={handleExportMarkdown} disabled={!ocrText}>
@@ -2643,6 +2757,11 @@ function App() {
                   <FileTextOutlined />
                   <span style={{ color: token.colorTextHeading }}>{t('ocr.result')}</span>
                   <Tag color="blue">{t('ocr.confidence')}: {Math.round(ocrConfidence)}%</Tag>
+                  {hybridResult && (
+                    <Tag color={hybridResult.consensus === 'high' ? 'success' : hybridResult.consensus === 'low' ? 'warning' : 'default'}>
+                      {hybridResult.consensus === 'high' ? t('ocr.consensusHigh') : hybridResult.consensus === 'low' ? t('ocr.consensusLow') : t('ocr.singleEngine')}
+                    </Tag>
+                  )}
                 </Space>
               }
               size="small"
@@ -2671,6 +2790,75 @@ function App() {
               >
                 {ocrText}
               </Typography.Paragraph>
+            </Card>
+          )}
+
+          {hybridResult && (
+            <Card
+              title={
+                <Space>
+                  <ExperimentOutlined />
+                  <span style={{ color: token.colorTextHeading }}>{t('ocr.hybridComparison')}</span>
+                </Space>
+              }
+              size="small"
+              style={{ marginBottom: 16, background: token.colorBgContainer, borderColor: token.colorBorder }}
+            >
+              <Descriptions column={2} size="small" bordered>
+                <Descriptions.Item label={t('ocr.paddleOCR')}>
+                  <Tag color="blue">{t('ocr.confidence')}: {Math.round(hybridResult.paddleConfidence)}%</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label={t('ocr.tesseractOCR')}>
+                  <Tag color="green">{t('ocr.confidence')}: {Math.round(hybridResult.tesseractConfidence)}%</Tag>
+                </Descriptions.Item>
+              </Descriptions>
+              <Row gutter={16} style={{ marginTop: 12 }}>
+                <Col span={12}>
+                  <Typography.Text strong>{t('ocr.paddleOCR')}:</Typography.Text>
+                  <Typography.Paragraph
+                    style={{
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      color: token.colorTextSecondary,
+                      maxHeight: 200,
+                      overflow: 'auto',
+                      background: token.colorBgLayout,
+                      padding: 8,
+                      borderRadius: 4,
+                      marginTop: 4,
+                    }}
+                  >
+                    {hybridResult.paddleText || t('ocr.noResult')}
+                  </Typography.Paragraph>
+                </Col>
+                <Col span={12}>
+                  <Typography.Text strong>{t('ocr.tesseractOCR')}:</Typography.Text>
+                  <Typography.Paragraph
+                    style={{
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      color: token.colorTextSecondary,
+                      maxHeight: 200,
+                      overflow: 'auto',
+                      background: token.colorBgLayout,
+                      padding: 8,
+                      borderRadius: 4,
+                      marginTop: 4,
+                    }}
+                  >
+                    {hybridResult.tesseractText || t('ocr.noResult')}
+                  </Typography.Paragraph>
+                </Col>
+              </Row>
+              {hybridResult.consensus === 'low' && (
+                <Alert
+                  message={t('ocr.manualReview')}
+                  description={t('ocr.manualReviewDesc')}
+                  type="warning"
+                  showIcon
+                  style={{ marginTop: 12 }}
+                />
+              )}
             </Card>
           )}
 
@@ -2792,19 +2980,11 @@ function App() {
 
   return (
     <ConfigProvider theme={{
+      cssVar: { prefix: 'ant', key: 'theme' },
       token: {
         colorPrimary: '#4f46e5',
-        colorSuccess: darkMode ? '#10b981' : '#10b981',
+        colorSuccess: '#10b981',
         colorError: '#ef4444',
-        colorText: darkMode ? 'rgba(255, 255, 255, 0.85)' : '#1a1a2e',
-        colorTextSecondary: darkMode ? 'rgba(255, 255, 255, 0.65)' : '#6b7280',
-        colorTextTertiary: darkMode ? 'rgba(255, 255, 255, 0.45)' : '#9ca3af',
-        colorTextHeading: darkMode ? 'rgba(255, 255, 255, 0.85)' : '#1a1a2e',
-        colorBgContainer: darkMode ? 'rgba(45, 45, 45, 0.7)' : 'rgba(255, 255, 255, 0.7)',
-        colorBgLayout: darkMode ? '#1a1a2e' : '#f5f7fa',
-        colorBgElevated: darkMode ? 'rgba(31, 31, 31, 0.8)' : 'rgba(255, 255, 255, 0.8)',
-        colorBorder: darkMode ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
-        colorBorderSecondary: darkMode ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)',
         borderRadius: 12,
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       },
@@ -2814,45 +2994,23 @@ function App() {
           borderRadius: 8,
           borderRadiusLG: 8,
           borderRadiusSM: 8,
-          defaultBg: darkMode ? 'rgba(51, 51, 51, 0.8)' : 'rgba(255, 255, 255, 0.8)',
-          defaultColor: darkMode ? 'rgba(255, 255, 255, 0.85)' : '#1a1a2e',
-          defaultBorderColor: darkMode ? 'rgba(68, 68, 68, 0.8)' : 'rgba(217, 217, 217, 0.8)',
         },
         Card: {
           borderRadiusLG: 12,
-          boxShadow: darkMode ? '0 4px 24px rgba(0,0,0,0.2)' : '0 4px 24px rgba(0,0,0,0.06)',
         },
         Table: {
           borderRadius: 8,
-          rowHoverBg: darkMode ? 'rgba(38, 38, 38, 0.8)' : 'rgba(240, 240, 255, 0.8)',
-          headerBg: darkMode ? 'rgba(31, 31, 31, 0.8)' : 'rgba(250, 250, 250, 0.8)',
-          headerColor: darkMode ? 'rgba(255, 255, 255, 0.85)' : '#1a1a2e',
         },
         Input: {
           borderRadius: 8,
           borderRadiusLG: 8,
           borderRadiusSM: 8,
           activeBorderColor: '#4f46e5',
-          activeShadow: darkMode ? '0 0 0 2px rgba(79, 70, 229, 0.3)' : '0 0 0 2px rgba(79, 70, 229, 0.1)',
-          colorText: darkMode ? 'rgba(255, 255, 255, 0.85)' : '#1a1a2e',
         },
         Select: {
           borderRadius: 8,
           borderRadiusLG: 8,
           borderRadiusSM: 8,
-          optionSelectedBg: darkMode ? 'rgba(38, 38, 38, 0.8)' : 'rgba(240, 240, 255, 0.8)',
-        },
-        Tabs: {
-          itemColor: darkMode ? 'rgba(255, 255, 255, 0.65)' : '#6b7280',
-          itemActiveColor: '#4f46e5',
-          itemSelectedColor: '#4f46e5',
-        },
-        Modal: {
-        },
-        Dropdown: {
-          colorBgElevated: darkMode ? 'rgba(31, 31, 31, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-        },
-        Switch: {
         },
       },
     }}>
@@ -2874,6 +3032,17 @@ function App() {
                   {t('app.title')}
                 </h1>
                 <Space size="middle">
+                  <Input.Search
+                    placeholder={t('search.placeholder') || 'AI semantic search...'}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onSearch={handleSearch}
+                    loading={searching}
+                    allowClear
+                    style={{ width: 300 }}
+                    size="small"
+                    prefix={<span style={{ fontSize: 12, marginRight: 4 }}>AI</span>}
+                  />
                   <Button
                     type="text"
                     size="small"
@@ -2892,6 +3061,25 @@ function App() {
                 </Space>
               </div>
             </div>
+
+            {searchResults.length > 0 && (
+              <div style={{ padding: '0 24px', marginBottom: 16 }}>
+                <Card size="small" title={`AI Search Results (${searchResults.length})`} extra={<Button type="link" size="small" onClick={() => { setSearchResults([]); setSearchQuery(''); }}>Clear</Button>}>
+                  <Table
+                    size="small"
+                    dataSource={searchResults}
+                    rowKey="path"
+                    pagination={false}
+                    columns={[
+                      { title: 'File', dataIndex: 'name', key: 'name', width: 200, ellipsis: true },
+                      { title: 'Relevance', dataIndex: 'score', key: 'score', width: 120, render: (score: number) => <Progress percent={score} size="small" status={score > 70 ? 'success' : score > 40 ? 'normal' : 'exception'} /> },
+                      { title: 'Reason', dataIndex: 'reason', key: 'reason', ellipsis: true },
+                      { title: 'Action', key: 'action', width: 100, render: (_: any, record: any) => <Button type="link" size="small" onClick={() => window.fileAPI.openExternal('file://' + record.path)}>Open</Button> },
+                    ]}
+                  />
+                </Card>
+              </div>
+            )}
 
             <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
               <div style={{ marginBottom: 24 }}>

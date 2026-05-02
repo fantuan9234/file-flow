@@ -40,6 +40,20 @@
     "ocr": "📝 OCR",
     "lan": "LAN Transfer"
   },
+  "fileList": {
+    "aiDescription": "AI Description",
+    "generateAiDesc": "Generate AI Description",
+    "aiDescFailed": "AI description generation failed"
+  },
+  "search": {
+    "placeholder": "AI semantic search...",
+    "failed": "Search failed",
+    "results": "AI Search Results",
+    "clear": "Clear",
+    "relevance": "Relevance",
+    "reason": "Reason",
+    "open": "Open"
+  },
   "rename": {
     "emptyState": "Select a folder to start renaming",
     "emptyGuideTitle": "Select a folder to start renaming",
@@ -356,7 +370,17 @@
     "unsavedChangesContent": "You have unsaved changes. Would you like to save them?",
     "saveBeforeClose": "Save",
     "discardChanges": "Don't Save",
-    "cancelClose": "Cancel"
+    "cancelClose": "Cancel",
+    "hybridMode": "Hybrid OCR Mode",
+    "hybridComparison": "Engine Results Comparison",
+    "paddleOCR": "PaddleOCR",
+    "tesseractOCR": "Tesseract.js",
+    "consensusHigh": "High Confidence",
+    "consensusLow": "Manual Review Needed",
+    "singleEngine": "Single Engine Result",
+    "manualReview": "Manual Review Needed",
+    "manualReviewDesc": "The two engines produced different results. Please verify carefully before using.",
+    "noResult": "No text detected"
   },
   "titleBar": {
     "appName": "File Flow",

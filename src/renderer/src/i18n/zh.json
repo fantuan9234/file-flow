@@ -35,6 +35,20 @@
     "ocr": "📝 OCR",
     "lan": "局域网快传"
   },
+  "fileList": {
+    "aiDescription": "AI 描述",
+    "generateAiDesc": "生成 AI 描述",
+    "aiDescFailed": "AI 描述生成失败"
+  },
+  "search": {
+    "placeholder": "AI 语义搜索文件...",
+    "failed": "搜索失败",
+    "results": "AI 搜索结果",
+    "clear": "清除",
+    "relevance": "相关度",
+    "reason": "原因",
+    "open": "打开"
+  },
   "rename": {
     "emptyState": "选择文件夹以开始重命名",
     "emptyGuideTitle": "选择文件夹以开始重命名",
@@ -351,7 +365,17 @@
     "unsavedChangesContent": "有未保存的修改，是否保存？",
     "saveBeforeClose": "保存",
     "discardChanges": "不保存",
-    "cancelClose": "取消"
+    "cancelClose": "取消",
+    "hybridMode": "混合 OCR 模式",
+    "hybridComparison": "引擎结果对比",
+    "paddleOCR": "PaddleOCR",
+    "tesseractOCR": "Tesseract.js",
+    "consensusHigh": "高置信度",
+    "consensusLow": "需人工核对",
+    "singleEngine": "单引擎结果",
+    "manualReview": "需人工核对",
+    "manualReviewDesc": "两个引擎的识别结果存在差异，请仔细核对后使用",
+    "noResult": "无识别结果"
   },
   "titleBar": {
     "appName": "File Flow",
